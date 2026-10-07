@@ -15,7 +15,7 @@ In development. This file and the documents in `docs/` are updated as each featu
 | 0 | Repository, solution skeleton, add-in registration, pane, Claude integration | Done; loads in Outlook |
 | 1 | Reply drafting, Assist, Summarize, follow-up questions, ribbon options, settings, prompt editor | Built; in-Outlook checks in progress |
 | 2 | Find meeting times, tentative holds, add to calendar, Assist button in the reading pane | Built; in-Outlook checks in progress |
-| 3 | Compose and polish, tasks and follow-ups, writing-style learning | Planned |
+| 3 | Write from a brief, polish your own text, extract tasks, follow-up reminders, writing-style learning | Built; in-Outlook checks in progress |
 | 4 | History, hand-off to Claude Code, polish | Planned |
 
 Form filling and signing is planned for later and is not part of the current work.

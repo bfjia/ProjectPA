@@ -9,7 +9,7 @@ Nothing happens on its own. PApii only runs when you click one of its buttons, a
 After installation and an Outlook restart you will find PApii in four places:
 
 - **The PApii tab** in the ribbon of the main window, of an open message, and of a reply you are writing. It has every control.
-- **A PApii group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply, Summarize, Find Times and Add to Calendar, so the common actions need no tab switch.
+- **A PApii group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply, Summarize, Find Times and Add to Calendar, so the common actions need no tab switch. Write from Brief, Polish, Extract Tasks and Follow Up are on the PApii tab.
 - **The right-click menu of a message** in the message list, under PApii.
 - **An Assist button in the reading pane**, in the message header just left of Reply, Reply All and Forward. It does the same as Assist on the ribbon. Outlook has no official way for an add-in to put a button there, so this one depends on how Outlook lays out the header: it hides itself when the pane is too narrow to fit it, and it may stop appearing after an Outlook update that changes the header. You can switch it off in Settings.
 
@@ -67,6 +67,32 @@ When a draft or a briefing notices that both sides have agreed on a time, a pill
 
 A note for Gmail and other IMAP accounts: classic Outlook does not sync their calendars. Entries for those accounts go to a calendar stored in Outlook on this computer unless you pick another one in the card.
 
+### Write from Brief
+
+**Write from Brief** writes an email from a one-line description. Click it, type what the email should say in the box at the bottom of the pane ("ask Dana for the final Q3 numbers by Friday"), and press Enter.
+
+- In a reply or a new email you already have open, **Insert** puts the text at the top of that email. If it has no subject yet, the subject PApii suggests is filled in.
+- From the main window, **Insert** opens a new email with the subject and text in place.
+
+The same pills as for replies appear underneath, and you can keep refining by typing.
+
+### Polish
+
+**Polish** improves what you have written in the email you are composing: grammar, spelling, awkward phrasing, and rambling. It keeps your meaning and does not add content.
+
+- Highlight part of your text first and Polish works on just that part. **Replace selection** swaps it for the improved version.
+- With nothing highlighted, Polish works on everything you typed (not the quoted thread). **Insert** puts the improved version at the top so you can compare and delete the old text.
+
+### Extract Tasks
+
+**Extract Tasks** lists what the thread leaves you to do: things to send, decide, prepare or answer, each with its deadline if the thread gives one. Tick the ones you want and click **Create tasks** to add them to your Outlook tasks, with the due date and a line of context.
+
+### Follow Up
+
+**Follow Up** sets a reminder on the selected email in 2, 3, 5 or 7 days, at 9 in the morning, moved to Monday if that lands on a weekend. Use it on something you are waiting for an answer to. No request is sent to Claude for this.
+
+On Exchange and Outlook.com mailboxes the email itself is flagged with the reminder. Gmail and other IMAP mailboxes cannot hold a dated flag, so a task named "Follow up: ..." is created with the same reminder.
+
 ### Asking questions
 
 At any point you can type a question about the thread in the box at the bottom, for example "what did they quote for the second option?" or "does the attached contract mention a notice period?". The answer appears as a new card. If your message asks for a change to a draft, you get a new draft instead.
@@ -100,6 +126,7 @@ Model, effort, tone and the attachment option are remembered and apply to every 
 - **Accounts.** One tick box per mail account. Untick an account to switch PApii off for it: PApii will refuse to read mail from that account.
 - **Reading pane.** Shows or hides the Assist button in the message header.
 - **Sign-off.** How drafts end. Leave it blank for a closing line followed by your first name (Outlook then adds your signature as usual). Type `none` for no sign-off. Anything else is used exactly as written.
+- **Writing style.** One line per account with three buttons. **Learn** reads about 30 of your recent sent emails from that account (your own words only, with quoted text removed), sends them to Claude once, and saves a short description of how you write: your greetings and sign-offs, how formal you are, your habits. From then on every draft for that account is told to follow it. **Edit** opens the description in Notepad so you can correct it. **Forget** deletes it. Learning is per account, so a work mailbox and a personal one can sound different.
 - **Calendars that count as busy.** Every calendar Outlook knows about, across all accounts. Find Times treats you as busy whenever a ticked calendar has an entry that is not marked Free. All are ticked to begin with.
 - **Working hours.** The hours and days Find Times may suggest, how many minutes to keep free on either side of existing meetings, and how many days ahead to look.
 - **Keep saved sessions for (days).** How long the working copies of threads and attachments are kept. The default is 14 days.
@@ -121,6 +148,10 @@ Pick a prompt from the list at the top, edit the text, and click **Save**. Your 
 | **Assist** | When you click Assist. | none |
 | **Find Times** | When you click Find Times. The answer is read as data, so keep the list of fields it asks for. | `{{timezone}}`, `{{now}}`, `{{free}}` |
 | **Add to Calendar** | When you click Add to Calendar. The answer is read as data, so keep the list of fields it asks for. | `{{timezone}}`, `{{now}}` |
+| **Write from Brief** | When you send a brief after clicking Write from Brief. | `{{brief}}`, `{{signoff}}`, `{{tone}}` |
+| **Polish** | When you click Polish. | `{{text}}` |
+| **Extract Tasks** | When you click Extract Tasks. The answer is read as data, so keep the list of fields it asks for. | `{{now}}` |
+| **Learn writing style** | When you click Learn in Settings. | `{{samples}}` |
 
 Placeholders are filled in when the prompt is used: `{{name}}` with your name, `{{account}}` with the mailbox address, `{{today}}` with the date, `{{instructions}}` with what you typed for Draft with Instructions, `{{text}}` with your follow-up message, `{{signoff}}` with the sign-off rule from Settings, `{{tone}}` with the Tone choice from the ribbon, `{{timezone}}` with your time zone, `{{now}}` with the current date and time, and `{{free}}` with your free time windows. You can move them or remove them. If you remove `{{signoff}}` or `{{tone}}`, those settings stop having an effect for that prompt.
 

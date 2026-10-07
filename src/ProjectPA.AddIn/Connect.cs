@@ -134,6 +134,10 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
             case "summarize": a.Go(a.Summarize); break;
             case "times": a.Go(a.FindTimes); break;
             case "event": a.Go(a.AddToCalendar); break;
+            case "tasks": a.Go(a.ExtractTasks); break;
+            case "brief": a.AskBrief(); break;
+            case "polish": a.Go(a.Polish); break;
+            case var t when t.StartsWith("follow"): a.Go(() => a.FollowUpIn(int.Parse(t.Substring(6)))); break;
         }
     });
 

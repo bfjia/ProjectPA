@@ -74,8 +74,10 @@ By default it works on a built-in sample thread (a three-message budget discussi
 
 | Option | Effect |
 |---|---|
-| `--do assist\|draft\|summarize\|times\|event` | Run that action on start. `times` is Find Times and `event` is Add to Calendar; both use a made-up calendar, and what they "create" is written to `out.png.events.txt` when `--shot` is used. |
-| `--with "text"` | Instructions for `--do draft`. |
+| `--do assist\|draft\|summarize\|times\|event\|tasks\|brief\|polish\|follow` | Run that action on start. `times` is Find Times, `event` is Add to Calendar, `brief` is Write from Brief, `follow` is Follow Up in 3 days. Calendar and task actions use a made-up calendar, and what they "create" is written to `out.png.events.txt` when `--shot` is used. |
+| `--with "text"` | Instructions for `--do draft`, or the brief for `--do brief`. |
+| `--typed "text"` | Pretend this text is being written in a reply, for `polish` and `brief`. |
+| `--selected "text"` | Pretend this part of it is highlighted, for `polish`. |
 | `--click "Label"` | Then press the button or pill with that label on the last card, for example `Shorter` or `Reply All`. |
 | `--say "text"` | Then type the text into the pane and send it. |
 | `--attach file` | Add a file to the sample thread as an attachment. |
@@ -123,6 +125,7 @@ Everything the add-in writes at run time is under `%LOCALAPPDATA%\ProjectPA`:
 | `logs\<date>.log` | One log file per day. |
 | `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Deleted after the number of days set in Settings. |
 | `prompts\<name>.md` | Prompts the user changed in the Prompts window. A file here replaces the built-in prompt of the same name. |
+| `style\<account>.md` | The writing-style description learned for an account, added to every draft request for it. |
 
 Setting the environment variable `PROJECTPA_DATA` to a folder makes everything above live there instead. The unit tests use it so that they never touch real settings or prompts, and it is handy for trying something in the DevHost without disturbing the installed add-in:
 

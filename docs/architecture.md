@@ -109,6 +109,14 @@ Requests that return data run at low effort regardless of the ribbon setting, be
 
 Each prompt is told the user's time zone and the current time, and to resolve relative days ("Thursday") from the date of the message that mentions them.
 
+## Writing, tasks and style
+
+**Sessions about an email being written.** Write from Brief and Polish are not about the selected thread, so `PApii.Writing` starts a session of a different kind: the "thread" given to Claude is a short description of the email being written (recipient, subject, and what has been typed so far, with quoted history removed). The `standalone` flag marks such a session. While it is set, follow-ups stay with that session whatever is selected in the message list, and the draft cards offer Insert (through `IHost.Compose`, which fills the open email or opens a new one) and, after Polish on highlighted text, Replace selection. Any thread action from the ribbon ends it by loading the selected email again.
+
+**Tasks.** Extract Tasks is a request with a schema returning titles, due dates and notes. Ticked items go to `IHost.CreateTask`. Follow Up involves no request at all: `OutlookHost.FollowUp` flags the message with a reminder, or creates a task when the mailbox is IMAP, which cannot store a dated flag.
+
+**Writing style.** Learn in Settings calls `IHost.SentSamples` for about 30 recent sent emails (the user's own text only), sends them in a single one-off request with the `style` prompt, and saves the reply to `%LOCALAPPDATA%\ProjectPA\style\<account>.md`. `Prompts.StyleNote` appends that file to the system prompt of every session for the account. It is appended in code and not through a placeholder, so it keeps working when the user has replaced the Ground rules prompt with their own.
+
 ## How generation works
 
 `Claude.Run` in `src/ProjectPA.Core/Claude.cs` starts one `claude` process per request:

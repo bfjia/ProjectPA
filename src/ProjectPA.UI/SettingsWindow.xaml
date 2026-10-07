@@ -47,6 +47,10 @@
         <TextBlock Style="{StaticResource Note}" Text="Leave blank for a closing line followed by your first name. Type none for no sign-off. Anything else is used exactly as written." />
         <TextBox x:Name="signOff" AcceptsReturn="True" Height="96" VerticalScrollBarVisibility="Auto" />
 
+        <TextBlock Style="{StaticResource Head}" Text="Writing style" />
+        <TextBlock Style="{StaticResource Note}" Text="Learn reads about 30 of your recent sent emails from that account, sends them to Claude once, and saves a short description of how you write. Drafts for that account then follow it. Edit opens the description so you can correct it." />
+        <StackPanel x:Name="styles" />
+
         <TextBlock Style="{StaticResource Head}" Text="Calendars that count as busy" />
         <TextBlock Style="{StaticResource Note}" Text="Find Times treats you as busy whenever a ticked calendar has an entry that is not marked Free. Only the times are used, never what the entries say." />
         <StackPanel x:Name="calendars" />

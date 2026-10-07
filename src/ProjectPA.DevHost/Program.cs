@@ -8,8 +8,10 @@ using ProjectPA.AddIn;
 using ProjectPA.UI;
 
 // Runs the PApii pane in a plain window, on a sample thread.
-//   --do assist|draft|summarize|times|event   run an action on start
-//   --with "text"                 instructions for --do draft
+//   --do assist|draft|summarize|times|event|tasks|brief|polish|follow   run an action on start
+//   --with "text"                 instructions for --do draft, or the brief for --do brief
+//   --typed "text"                pretend this is being written in a reply (for polish and brief)
+//   --selected "text"             pretend this part of it is highlighted
 //   --click "Label"               then press that button or suggestion on the last card
 //   --say "text"                  then type this into the pane and send it
 //   --attach file                 add a file to the sample thread as an attachment
@@ -50,7 +52,7 @@ static class Program
         var a = pane.PApii;
         a.Host = args.Contains("--outlook") ? OutlookHost.Attach() : new SampleHost
         {
-            Attach = Arg("--attach"),
+            Attach = Arg("--attach"), Typed = Arg("--typed") ?? "", SelectedText = Arg("--selected") ?? "",
             OnInsert = (text, all) => { if (shot == null) MessageBox.Show(text, all ? "Reply All" : "Reply"); else inserted.Add(text); },
         };
         var win = Arg("--show") switch
@@ -77,6 +79,10 @@ static class Program
                 case "draft": await Do(() => a.Go(() => a.DraftReply(Arg("--with")))); break;
                 case "times": await Do(() => a.Go(a.FindTimes)); break;
                 case "event": await Do(() => a.Go(a.AddToCalendar)); break;
+                case "tasks": await Do(() => a.Go(a.ExtractTasks)); break;
+                case "polish": await Do(() => a.Go(a.Polish)); break;
+                case "brief": await Do(() => a.Go(() => a.Compose(Arg("--with")))); break;
+                case "follow": await Do(() => a.Go(() => a.FollowUpIn(3))); break;
             }
             if (Arg("--click") is { } label)
                 await Do(() => a.Cards.Last().Buttons.Concat(a.Cards.Last().Chips).First(c => c.Label == label).Run.Execute(null));
@@ -102,10 +108,12 @@ static class Program
     static string Dump(IHost host)
     {
         var sb = new StringBuilder();
+        string account = null;
         try
         {
             var dir = Path.Combine(Path.GetTempPath(), "pa-dump-" + Guid.NewGuid());
             var t = host.ReadThread(Path.Combine(dir, "attachments"));
+            account = t.Account;
             Context.Digest(t, dir);
             sb.AppendLine($"key={(t.Key == null ? "null" : "set")} composing={t.Composing} manyRecipients={t.ManyRecipients} account={(string.IsNullOrEmpty(t.Account) ? "missing" : "set")} user={(string.IsNullOrEmpty(t.UserName) ? "missing" : "set")}");
             foreach (var m in t.Messages)
@@ -116,6 +124,20 @@ static class Program
             }
             sb.AppendLine($"rendered={Context.Render(t).Length} chars");
             if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+        catch (Exception e) { sb.AppendLine("thread: " + e.Message); }
+        try
+        {
+            // calendar: how many, how busy; no names, no entries
+            var s = Settings.Current;
+            DateTime from = DateTime.Now, to = DateTime.Today.AddDays(s.HorizonDays + 1);
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            var cals = host.Calendars.ToList();
+            sb.AppendLine($"calendars={cals.Count} found in {watch.ElapsedMilliseconds} ms, default calendar {(cals.Any(c => c.Id == host.DefaultCalendar(account)) ? "is among them" : "NOT among them")}");
+            watch.Restart();
+            var busy = host.BusyBlocks(from, to);
+            var free = Scheduling.FreeWindows(busy, from, to, s);
+            sb.AppendLine($"busy blocks next {s.HorizonDays} days={busy.Count} (holds {busy.Count(b => b.Hold)}) read in {watch.ElapsedMilliseconds} ms, all inside range={busy.All(b => b.Start < to && b.End > from)}, free windows={free.Count} on {free.Select(f => f.Start.Date).Distinct().Count()} days");
         }
         catch (Exception e) { sb.AppendLine("FAILED: " + e); }
         return sb.ToString();
@@ -150,6 +172,20 @@ class SampleHost : IHost
     }
     public int RemoveHolds(string key) => Events.RemoveAll(x => x.StartsWith("hold"));
     public void OpenEvent(string id) { }
+
+    // pretend an email is being written; --typed gives its text, --selected the highlighted part
+    public string Typed = "", SelectedText = "";
+    public DraftInfo ReadDraft() => new()
+    {
+        Composing = Typed.Length > 0, Account = "sam.jones@example.com", UserName = "Sam Jones",
+        To = Typed.Length > 0 ? "Dana Lee" : "", Subject = "", Text = Typed, Selection = SelectedText,
+    };
+    public void Compose(string subject, string body) => OnInsert($"[subject: {subject}]\n{body}", false);
+    public void ReplaceSelection(string text) => OnInsert("[replaces selection]\n" + text, false);
+    public void CreateTask(TaskDraft t) => Events.Add($"task | {t.Title} | due {t.Due:yyyy-MM-dd} | {t.Notes.Replace("\n", " / ")}");
+    public string FollowUp(int days) => $"this email is flagged, and Outlook will remind you in {days} days.";
+    public List<string> SentSamples(string account, int count) => Enumerable.Range(1, 6)
+        .Select(i => $"Hi Dana,\n\nQuick one about item {i}: can you send me the latest numbers when you get a chance? No rush, end of week is fine.\n\nCheers,\nSam").ToList();
 
     public EmailThread ReadThread(string attachDir)
     {

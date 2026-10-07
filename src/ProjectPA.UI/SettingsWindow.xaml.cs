@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -27,7 +28,11 @@ public partial class SettingsWindow : Window
             into.Children.Add(c);
             return c;
         }
-        foreach (var a in host.Accounts) Tick(accounts, a, !s.DisabledAccounts.Contains(a, StringComparer.OrdinalIgnoreCase));
+        foreach (var a in host.Accounts)
+        {
+            Tick(accounts, a, !s.DisabledAccounts.Contains(a, StringComparer.OrdinalIgnoreCase));
+            StyleRow(host, a);
+        }
         foreach (var c in host.Calendars) Tick(calendars, c.Name, s.AvailabilityCalendars.Count == 0 || s.AvailabilityCalendars.Contains(c.Id), c.Id);
         foreach (var d in Days) Tick(workDays, d, s.WorkDays.Contains(d));
 
@@ -40,6 +45,57 @@ public partial class SettingsWindow : Window
         keepDays.Text = s.KeepDays.ToString();
         claudePath.Text = s.ClaudePath;
         found.Text = "Leave blank to find it automatically. Currently using: " + (Claude.Find() ?? "not found");
+    }
+
+    // One account's writing-style description: learn it from sent mail, edit it, or drop it.
+    void StyleRow(IHost host, string account)
+    {
+        var file = Prompts.StyleFile(account);
+        var state = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+        Button Small(string label) => new Button { Content = label, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(6, 2, 0, 2) };
+        Button learn = Small("Learn"), edit = Small("Edit"), forget = Small("Forget");
+        void Show(string text = null)
+        {
+            state.Text = $"{account}: " + (text ?? (File.Exists(file) ? $"learned {File.GetLastWriteTime(file):d MMM yyyy}" : "not learned"));
+            edit.IsEnabled = forget.IsEnabled = File.Exists(file);
+        }
+
+        learn.Click += async (_, _) =>
+        {
+            learn.IsEnabled = false;
+            try
+            {
+                var samples = host.SentSamples(account, 30);
+                if (samples.Count < 5) { Show("not enough sent mail to learn from"); return; }
+                Show($"reading {samples.Count} sent emails, this takes a moment");
+                var r = await Claude.Run(new ClaudeRequest
+                {
+                    Prompt = Prompts.Get("style", ("samples", string.Join("\n\n----------\n\n", samples))),
+                    SystemPrompt = "You describe how a person writes. Plain text only.",
+                    WorkDir = Path.GetDirectoryName(file), Model = Settings.Current.Model, Tools = "",
+                });
+                if (r.Ok) File.WriteAllText(file, r.Text.Trim());
+                Show(r.Ok ? null : r.Error);
+            }
+            catch (Exception e)
+            {
+                Log.Error("learn style", e);
+                Show(e.Message);
+            }
+            finally { learn.IsEnabled = true; }
+        };
+        edit.Click += (_, _) => Process.Start("notepad.exe", $"\"{file}\"");
+        forget.Click += (_, _) => { File.Delete(file); Show(); };
+
+        var row = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+        foreach (var b in new[] { forget, edit, learn })
+        {
+            DockPanel.SetDock(b, Dock.Right);
+            row.Children.Add(b);
+        }
+        row.Children.Add(state);
+        styles.Children.Add(row);
+        Show();
     }
 
     void Save(object sender, RoutedEventArgs e)

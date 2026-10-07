@@ -264,19 +264,128 @@ public class OutlookHost : IHost
     public void InsertReply(string text, bool replyAll)
     {
         var cur = Current() ?? throw new InvalidOperationException("Select an email first.");
-        object editor;
-        if (!cur.Sent)   // already replying: use that
-            editor = (object)Explorer?.ActiveInlineResponse != null ? Explorer.ActiveInlineResponseWordEditor : cur.GetInspector.WordEditor;
-        else
+        if (cur.Sent)   // not replying yet: open one
         {
             cur = replyAll ? cur.ReplyAll() : cur.Reply();
             cur.Display();   // the editor only exists once the window is up
-            editor = cur.GetInspector.WordEditor;
         }
+        Insert(cur, text);
+    }
 
-        text = text.Replace("\r\n", "\n").Replace('\n', '\r') + "\r";   // Word paragraph marks
-        // top of the body, above signature and quoted thread, in the reply's own font
-        if (editor != null) ((dynamic)editor).Range(0, 0).InsertBefore(text);
-        else cur.Body = text + cur.Body;
+    // The Word editor behind an email being written: inline in the main window, or its own window.
+    dynamic Editor(Outlook.MailItem m) =>
+        (object)Explorer?.ActiveInlineResponse != null ? Explorer.ActiveInlineResponseWordEditor : m.GetInspector.WordEditor;
+
+    static string Paragraphs(string text) => text.Replace("\r\n", "\n").Replace('\n', '\r');   // Word paragraph marks
+
+    // top of the body, above signature and quoted thread, in the email's own font
+    void Insert(Outlook.MailItem m, string text)
+    {
+        var editor = Editor(m);
+        if (editor != null) editor.Range(0, 0).InsertBefore(Paragraphs(text) + "\r");
+        else m.Body = text + "\r\n" + m.Body;
+    }
+
+    // ---- writing, tasks, follow-ups ----
+
+    public DraftInfo ReadDraft()
+    {
+        var cur = Current();
+        var composing = cur != null && !cur.Sent;
+        Outlook.Account account = null;
+        try { account = composing ? cur.SendUsingAccount : null; } catch { }
+        account ??= app.Session.Accounts[1];
+        var d = new DraftInfo { Composing = composing, Account = account.SmtpAddress, UserName = account.UserName };
+        if (!composing) return d;
+        d.To = cur.To ?? "";
+        d.Subject = cur.Subject ?? "";
+        d.Text = Context.StripQuotes(cur.Body);
+        try
+        {
+            string sel = Editor(cur).Application.Selection.Text;
+            if (sel != null && sel.Trim().Length > 1) d.Selection = sel.Replace('\r', '\n').Trim();   // a bare caret reports one character
+        }
+        catch { }
+        return d;
+    }
+
+    public void Compose(string subject, string body)
+    {
+        var cur = Current();
+        if (cur == null || cur.Sent)
+        {
+            cur = (Outlook.MailItem)(object)app.CreateItem(Outlook.OlItemType.olMailItem);
+            cur.Display();
+        }
+        if (string.IsNullOrWhiteSpace(cur.Subject) && !string.IsNullOrWhiteSpace(subject)) cur.Subject = subject;
+        Insert(cur, body);
+    }
+
+    public void ReplaceSelection(string text)
+    {
+        var cur = Current();
+        if (cur == null || cur.Sent) throw new InvalidOperationException("The email you were writing is no longer open.");
+        Editor(cur).Application.Selection.Range.Text = Paragraphs(text);
+    }
+
+    public void CreateTask(TaskDraft t)
+    {
+        var task = (Outlook.TaskItem)(object)app.CreateItem(Outlook.OlItemType.olTaskItem);
+        task.Subject = t.Title;
+        task.Body = t.Notes;
+        if (t.Due is { } due) task.DueDate = due;
+        task.Save();
+    }
+
+    public string FollowUp(int days)
+    {
+        var m = Current();
+        if (m == null || !m.Sent) throw new InvalidOperationException("Select the email to follow up on first.");
+        var due = DateTime.Today.AddDays(days);
+        while (due.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) due = due.AddDays(1);
+        var at = due.AddHours(9);
+
+        var store = ((Outlook.MAPIFolder)(object)m.Parent).Store;
+        if (AccountOf(store)?.AccountType != Outlook.OlAccountType.olImap)
+            try
+            {
+                m.MarkAsTask(Outlook.OlMarkInterval.olMarkNoDate);
+                m.TaskDueDate = due;
+                m.ReminderSet = true;
+                m.ReminderTime = at;
+                m.Save();
+                return $"this email is flagged, and Outlook will remind you on {at:dddd d MMMM} at {at:t}.";
+            }
+            catch (Exception e) { Log.Error("flag", e); }
+
+        // IMAP mailboxes cannot hold a dated flag: a task does the same job
+        var task = (Outlook.TaskItem)(object)app.CreateItem(Outlook.OlItemType.olTaskItem);
+        task.Subject = "Follow up: " + m.Subject;
+        task.Body = $"No reply yet? Email from {m.SenderName}, sent {m.SentOn:d}.";
+        task.DueDate = due;
+        task.ReminderSet = true;
+        task.ReminderTime = at;
+        task.Save();
+        return $"a task was created, and Outlook will remind you on {at:dddd d MMMM} at {at:t}. (This mailbox cannot hold a dated flag on the email itself.)";
+    }
+
+    public List<string> SentSamples(string account, int count)
+    {
+        var samples = new List<string>();
+        foreach (Outlook.Account a in app.Session.Accounts)
+        {
+            if (!string.Equals(a.SmtpAddress, account, StringComparison.OrdinalIgnoreCase)) continue;
+            var items = a.DeliveryStore.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderSentMail).Items;
+            items.Sort("[SentOn]", true);   // newest first
+            var looked = 0;
+            foreach (object o in items)
+            {
+                if (++looked > count * 4 || samples.Count >= count) break;
+                if (o is not Outlook.MailItem m) continue;
+                var own = Context.StripQuotes(m.Body).Trim();
+                if (own.Length is > 80 and < 4000) samples.Add(own);   // skip one-liners and pasted documents
+            }
+        }
+        return samples;
     }
 }

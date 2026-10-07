@@ -46,6 +46,7 @@ public class Option : Observable
     public string Label { get; set; }
     public DateTime When;
     public bool Theirs;   // the other side proposed it
+    public object Tag;    // whatever the tick stands for
     public bool On { get => on; set => Set(ref on, value); }
 }
 
@@ -108,8 +109,11 @@ public class PApii : Observable
 
     readonly Dispatcher ui = Dispatcher.CurrentDispatcher;
     string input = "", status = "Ready", subject, detail, hint = DefaultHint;
-    bool busy, wantInstructions;
-    bool fresh;   // Claude has not seen the loaded thread yet
+    bool busy;
+    string asking;       // what the next typed text is for: "draft" instructions, a "brief", or null for a follow-up
+    bool fresh;          // Claude has not seen the loaded thread yet
+    bool standalone;     // the session is about an email being written, not the selected thread
+    bool hadSelection;   // Polish worked on highlighted text
     EmailThread thread;
     string threadText, workDir, sessionId;
     CancellationTokenSource cts;
@@ -135,10 +139,10 @@ public class PApii : Observable
             var q = Input.Trim();
             if (Busy || q.Length == 0) return;   // busy: keep what was typed
             Input = "";
-            if (!wantInstructions) { Go(() => FollowUp(q)); return; }
-            wantInstructions = false;
+            var what = asking;
+            asking = null;
             Hint = DefaultHint;
-            Go(() => DraftReply(q));
+            Go(() => what == "draft" ? DraftReply(q) : what == "brief" ? Compose(q) : FollowUp(q));
         });
         Stop = new Cmd(() => cts?.Cancel());
     }
@@ -165,13 +169,17 @@ public class PApii : Observable
             : "The user's instructions for this reply: " + instructions),
         Style()[0], Style()[1]), draft: true);
 
-    Task FollowUp(string text) => Write("Answer", Prompts.Get("followup", ("text", text), Style()[0], Style()[1]));
+    // while writing an email, follow-ups stay with it whatever is selected in the message list
+    Task FollowUp(string text) => Write("Answer", Prompts.Get("followup", ("text", text), Style()[0], Style()[1]), load: !standalone);
 
-    // The next thing typed becomes the instructions for a draft.
-    public void AskInstructions()
+    // The next thing typed becomes the instructions for a draft, or the brief for a new email.
+    public void AskInstructions() => Ask("draft", "What should the reply say? For example: accept, but ask to move it to next week.");
+    public void AskBrief() => Ask("brief", "What should the email say? For example: ask Dana for the Q3 numbers by Friday.");
+
+    void Ask(string what, string hint)
     {
-        wantInstructions = true;
-        Hint = "What should the reply say? For example: accept, but ask to move it to next week.";
+        asking = what;
+        Hint = hint;
         FocusInput?.Invoke();
     }
 
@@ -185,20 +193,23 @@ public class PApii : Observable
     static string When(DateTime d) => $"{d:ddd d MMM}, {d:t}";
     static string Plural(int n, string what) => $"{n} {what}{(n == 1 ? "" : "s")}";
 
-    // Wraps every action: one at a time, with the selected email loaded first.
-    async Task Act(Func<Task> body)
+    // Wraps every action: one at a time, and (unless load is off) with the selected email loaded first.
+    async Task Act(Func<Task> body, bool load = true)
     {
         if (Busy) return;
         Busy = true;
         cts = new CancellationTokenSource();
         try
         {
-            var key = Host.CurrentKey ?? throw new InvalidOperationException("Select an email first.");
-            if (key != thread?.Key)
+            if (load)
             {
-                Status = "Reading the thread";
-                await Paint();   // the read blocks
-                Load();
+                var key = Host.CurrentKey ?? throw new InvalidOperationException("Select an email first.");
+                if (key != thread?.Key || standalone)
+                {
+                    Status = "Reading the thread";
+                    await Paint();   // the read blocks
+                    Load();
+                }
             }
             await body();
         }
@@ -219,7 +230,7 @@ public class PApii : Observable
         {
             Prompt = fresh ? threadText + "\n\n---\n\n" + prompt : prompt,
             SystemPrompt = fresh ? Prompts.Get("system", ("name", thread.UserName), ("account", thread.Account),
-                ("today", DateTime.Now.ToString("dddd d MMMM yyyy"))) : null,
+                ("today", DateTime.Now.ToString("dddd d MMMM yyyy"))) + Prompts.StyleNote(thread.Account) : null,
             // pulling out dates and times needs little thought; low effort keeps it quick
             WorkDir = workDir, SessionId = sessionId, Resume = !fresh, Model = s.Model, Effort = effort, JsonSchema = schema,
         },
@@ -241,7 +252,9 @@ public class PApii : Observable
     }
 
     // An action whose result is text: a draft, a summary, an answer.
-    Task Write(string title, string prompt, bool draft = false) => Act(async () =>
+    Task Write(string title, string prompt, bool draft = false, bool load = true) => Act(() => Stream(title, prompt, draft), load);
+
+    async Task Stream(string title, string prompt, bool draft)
     {
         var card = new Card { Title = title, Rich = !draft };
         Cards.Add(card);
@@ -250,7 +263,7 @@ public class PApii : Observable
         var (body, meta) = Context.SplitMeta(r.Text);
         card.Text = body;
         Decorate(card, meta, draft || meta?["intents"] != null);
-    });
+    }
 
     void Load()
     {
@@ -272,6 +285,7 @@ public class PApii : Observable
         File.WriteAllText(Path.Combine(dir, "thread.md"), threadText);
         sessionId = Guid.NewGuid().ToString();
         fresh = true;
+        standalone = false;
 
         var atts = t.Messages.SelectMany(m => m.Attachments).ToList();
         Cards.Clear();
@@ -293,9 +307,14 @@ public class PApii : Observable
         card.Rich = !draft;
         if (draft)
         {
-            card.Title = "Draft reply";
+            card.Title = standalone ? "Draft" : "Draft reply";
             // card.Text at click time: the user may have edited the draft
-            if (thread.Composing) Button(card, "Insert", () => Host.InsertReply(card.Text, false), true);
+            if (standalone)
+            {
+                Button(card, "Insert", () => { var (subject, body) = Context.SplitSubject(card.Text); Host.Compose(subject, body); }, !hadSelection);
+                if (hadSelection) Button(card, "Replace selection", () => Host.ReplaceSelection(card.Text), true);
+            }
+            else if (thread.Composing) Button(card, "Insert", () => Host.InsertReply(card.Text, false), true);
             else
             {
                 Button(card, "Reply All", () => Host.InsertReply(card.Text, true), thread.ManyRecipients);
@@ -316,6 +335,9 @@ public class PApii : Observable
                 case "find_times":
                     Suggest(card, "Find times", FindTimes);
                     break;
+                case "tasks":
+                    Suggest(card, "Extract tasks", ExtractTasks);
+                    break;
             }
 
         // a time both sides agreed on: one click away from the calendar, no second request
@@ -329,6 +351,92 @@ public class PApii : Observable
             Suggest(card, "Add to calendar: " + When(start), () => { ShowEvent(e, true); return Task.CompletedTask; });
         }
     }
+
+    // Starts a session about the email being written here (or a new one), not about the selected thread.
+    DraftInfo Writing()
+    {
+        var d = Host.ReadDraft();
+        if (Settings.Current.DisabledAccounts.Contains(d.Account ?? "", StringComparer.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"PApii is switched off for {d.Account}. You can change this in Settings.");
+        thread = new EmailThread
+        {
+            Key = "writing:" + Guid.NewGuid(), Composing = true, Account = d.Account, UserName = d.UserName,
+            Subject = string.IsNullOrWhiteSpace(d.Subject) ? "New email" : d.Subject,
+        };
+        threadText = $"# An email the user is writing\nMailbox: {d.Account}. The user is {d.UserName}.\n"
+            + $"To: {(d.To.Length > 0 ? d.To : "(not set)")}\nSubject: {(d.Subject.Length > 0 ? d.Subject : "(none yet)")}\n\n"
+            + $"What they have written so far:\n{(d.Text.Trim().Length > 0 ? d.Text.Trim() : "(nothing yet)")}";
+        workDir = Context.NewSession();
+        File.WriteAllText(Path.Combine(workDir, "thread.md"), threadText);
+        sessionId = Guid.NewGuid().ToString();
+        fresh = standalone = true;
+        hadSelection = false;
+
+        Cards.Clear();
+        Items.Clear();
+        Subject = thread.Subject;
+        Detail = $"{d.Account} · {(d.Composing ? "the email you are writing" : "a new email")}";
+        return d;
+    }
+
+    // A new email from a one-line description.
+    public Task Compose(string brief) => Act(() =>
+    {
+        Writing();
+        return Stream("Draft", Prompts.Get("compose", ("brief", brief), Style()[0], Style()[1]), draft: true);
+    }, load: false);
+
+    // Rewrites what the user typed: the highlighted part if there is one, else all of it.
+    public Task Polish() => Act(() =>
+    {
+        var d = Writing();
+        hadSelection = d.Selection.Length > 0;
+        var text = hadSelection ? d.Selection : d.Text.Trim();
+        if (text.Length == 0)
+            throw new InvalidOperationException("There is nothing to polish yet. Write something in a reply or a new email, or highlight the part to improve.");
+        return Stream("Draft", Prompts.Get("polish", ("text", text)), draft: true);
+    }, load: false);
+
+    // Lists what the thread leaves the user to do; ticked items become Outlook tasks.
+    public Task ExtractTasks() => Act(async () =>
+    {
+        var card = new Card { Title = "Tasks", Rich = true, Text = "Looking for things to do." };
+        Cards.Add(card);
+        var r = await Call(Prompts.Get("tasks", Now()), card, Scheduling.TasksSchema);
+        if (!r.Ok) return;
+        foreach (var t in (r.Structured["tasks"] ?? new JArray()).OfType<JObject>())
+        {
+            var task = new TaskDraft
+            {
+                Title = (string)t["title"], Due = Scheduling.Parse((string)t["due"]),
+                Notes = $"{(string)t["notes"]}\n\nFrom the email: {thread.Subject}".Trim(),
+            };
+            if (string.IsNullOrWhiteSpace(task.Title)) continue;
+            card.Options.Add(new Option { Label = task.Title + (task.Due is { } due ? $" (due {due:ddd d MMM})" : ""), Tag = task, On = true });
+        }
+        if (card.Options.Count == 0)
+        {
+            card.Text = "Nothing in this thread is left for you to do.";
+            return;
+        }
+        card.Text = "Tick the ones to add to your Outlook tasks.";
+        Button(card, "Create tasks", () =>
+        {
+            var ticked = card.Options.Where(o => o.On).ToList();
+            if (ticked.Count == 0) throw new InvalidOperationException("Tick at least one task first.");
+            foreach (var o in ticked) Host.CreateTask((TaskDraft)o.Tag);
+            card.Text = "Added to your Outlook tasks:" + string.Concat(ticked.Select(o => "\n- " + o.Label));
+            card.Options.Clear();
+            card.Buttons.Clear();
+        }, true);
+    });
+
+    // A reminder on the selected email. No request to Claude.
+    public Task FollowUpIn(int days) => Act(() =>
+    {
+        Cards.Add(new Card { Title = "Follow-up", Rich = true, Text = "Reminder: " + Host.FollowUp(days) });
+        return Task.CompletedTask;
+    }, load: false);
 
     // Reads the meeting request, checks the calendar, and offers times to tick.
     public Task FindTimes() => Act(async () =>

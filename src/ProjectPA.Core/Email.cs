@@ -25,6 +25,21 @@ public class EmailThread
     public List<Message> Messages = new();
 }
 
+// The email being written in a window, or just the account when none is.
+public class DraftInfo
+{
+    public bool Composing;
+    public string Account, UserName, To = "", Subject = "";
+    public string Text = "";        // what the user typed, without quoted history
+    public string Selection = "";   // highlighted text, if any
+}
+
+public class TaskDraft
+{
+    public string Title, Notes;
+    public DateTime? Due;
+}
+
 // What PApii needs from the mail client: Outlook in the add-in, a fake in DevHost.
 public interface IHost
 {
@@ -39,4 +54,11 @@ public interface IHost
     string CreateEvent(EventDraft e);               // returns an id for OpenEvent
     int RemoveHolds(string key);                    // deletes our tentative holds whose notes contain key
     void OpenEvent(string id);
+
+    DraftInfo ReadDraft();                          // the email being written here; Composing false when there is none
+    void Compose(string subject, string body);      // into the email being written, else a new one; never sends
+    void ReplaceSelection(string text);             // swaps the highlighted text in the email being written
+    void CreateTask(TaskDraft t);
+    string FollowUp(int days);                      // reminder on the selected email; returns what was set, for display
+    List<string> SentSamples(string account, int count);   // the user's own words from recent sent mail
 }

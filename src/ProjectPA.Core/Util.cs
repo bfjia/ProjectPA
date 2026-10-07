@@ -89,7 +89,19 @@ public static class Prompts
         new() { Name = "assist", Title = "Assist", About = "The request behind Assist. No placeholders." + Meta },
         new() { Name = "find-times", Title = "Find Times", About = "The request behind Find Times. The answer is read as data, so keep the list of fields it asks for. Placeholders: {{timezone}}, {{now}}, {{free}} (your free windows)." },
         new() { Name = "event", Title = "Add to Calendar", About = "The request behind Add to Calendar. The answer is read as data, so keep the list of fields it asks for. Placeholders: {{timezone}}, {{now}}." },
+        new() { Name = "compose", Title = "Write from Brief", About = "The request behind Write from Brief. Placeholders: {{brief}}, {{signoff}}, {{tone}}." + Meta },
+        new() { Name = "polish", Title = "Polish", About = "The request behind Polish. Placeholder: {{text}} (the text you selected, or all you have written)." },
+        new() { Name = "tasks", Title = "Extract Tasks", About = "The request behind Extract Tasks. The answer is read as data, so keep the list of fields it asks for. Placeholder: {{now}}." },
+        new() { Name = "style", Title = "Learn writing style", About = "Used by Learn in Settings to describe how you write, from a sample of your sent mail. Placeholder: {{samples}}." },
     };
+
+    // What Learn in Settings wrote about how this account's owner writes; empty until learned.
+    public static string StyleFile(string account) => Path.Combine(Paths.Data, "style",
+        string.Concat((account ?? "").Select(c => char.IsLetterOrDigit(c) || c is '.' or '@' or '-' ? c : '_')) + ".md");
+
+    public static string StyleNote(string account) => File.Exists(StyleFile(account))
+        ? "\n\nHow the user writes. Follow this in anything you draft for them:\n" + File.ReadAllText(StyleFile(account)).Trim()
+        : "";
 
     static string CustomFile(string name) => Path.Combine(Paths.Data, "prompts", name + ".md");
     public static bool IsCustom(string name) => File.Exists(CustomFile(name));

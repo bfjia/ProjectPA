@@ -180,6 +180,13 @@ public static class Context
         if (at < line.Length) yield return (line.Substring(at), false);
     }
 
+    // A draft for a new email may open with "Subject: ..."; peel it off.
+    public static (string subject, string body) SplitSubject(string text)
+    {
+        var m = Regex.Match(text.TrimStart(), @"^Subject:[ \t]*(.*)\r?\n", I);
+        return m.Success ? (m.Groups[1].Value.Trim(), text.TrimStart().Substring(m.Length).Trim()) : ("", text.Trim());
+    }
+
     // Splits "body, MetaMark, json". meta is null when absent or unparseable.
     public static (string body, JObject meta) SplitMeta(string text)
     {

@@ -30,6 +30,8 @@ public static class Scheduling
 
     public const string EventSchema = """{"type":"object","properties":{"found":{"type":"boolean"},"title":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"location":{"type":"string"},"notes":{"type":"string"},"confirmed":{"type":"boolean"}},"required":["found","title","start","end","location","notes","confirmed"]}""";
 
+    public const string TasksSchema = """{"type":"object","properties":{"tasks":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"due":{"type":"string"},"notes":{"type":"string"}},"required":["title","due","notes"]}}},"required":["tasks"]}""";
+
     // the format the prompts ask for
     public static DateTime? Parse(string iso) =>
         DateTime.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;

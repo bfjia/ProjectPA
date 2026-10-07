@@ -36,6 +36,25 @@
           <button id="paSummarize" tag="summarize" label="Summarize" size="large" imageMso="Bullets" onAction="Do"
                   screentip="Summarize the thread"
                   supertip="What it is about, what is asked of you, dates and decisions, and open questions." />
+          <button id="paTasks" tag="tasks" label="Extract Tasks" imageMso="NewTask" onAction="Do"
+                  screentip="List what this thread leaves you to do"
+                  supertip="Shows the actions with any deadlines. Tick the ones to add to your Outlook tasks." />
+          <menu id="paFollow" label="Follow Up" imageMso="FlagMessage"
+                screentip="Remind me about this email" supertip="Flags the email with a reminder on the morning of the day you choose. For mailboxes that cannot hold dated flags, a task is created instead.">
+            <button id="paFollow2" tag="follow2" label="In 2 days" onAction="Do" />
+            <button id="paFollow3" tag="follow3" label="In 3 days" onAction="Do" />
+            <button id="paFollow5" tag="follow5" label="In 5 days" onAction="Do" />
+            <button id="paFollow7" tag="follow7" label="In a week" onAction="Do" />
+          </menu>
+        </group>
+
+        <group id="paWrite" label="Write">
+          <button id="paBrief" tag="brief" label="Write from Brief" size="large" imageMso="NewMailMessage" onAction="Do"
+                  screentip="Write an email from a one-line description"
+                  supertip="Type what the email should say in the pane. In a reply or a new email the result is inserted there; otherwise a new email is opened." />
+          <button id="paPolish" tag="polish" label="Polish" size="large" imageMso="SpellingAndGrammar" onAction="Do"
+                  screentip="Improve what you have written"
+                  supertip="Works on the text you have highlighted in the email you are writing, or on everything you have typed if nothing is highlighted. Fixes grammar and awkward phrasing without changing what you say." />
         </group>
 
         <group id="paMeet" label="Meetings">
@@ -98,6 +117,7 @@
         <button id="paCtxSummarize" tag="summarize" label="Summarize" onAction="Do" />
         <button id="paCtxTimes" tag="times" label="Find Times" onAction="Do" />
         <button id="paCtxEvent" tag="event" label="Add to Calendar" onAction="Do" />
+        <button id="paCtxTasks" tag="tasks" label="Extract Tasks" onAction="Do" />
       </menu>
     </contextMenu>
   </contextMenus>

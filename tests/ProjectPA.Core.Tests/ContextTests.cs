@@ -145,6 +145,25 @@ public class ContextTests
         Assert.Equal("object", (string)Newtonsoft.Json.Linq.JObject.Parse(Scheduling.EventSchema)["type"]);
     }
 
+    [Theory]
+    [InlineData("Subject: Q3 numbers\n\nHi Dana,\n\nCould you send them?", "Q3 numbers", "Hi Dana,\n\nCould you send them?")]
+    [InlineData("subject:  Hello \r\n\r\nBody", "Hello", "Body")]
+    [InlineData("Hi Dana,\n\nSubject: this is not a header", "", "Hi Dana,\n\nSubject: this is not a header")]
+    [InlineData("Just text", "", "Just text")]
+    public void SplitSubject_peels_a_leading_subject_line(string text, string subject, string body) =>
+        Assert.Equal((subject, body), Context.SplitSubject(text));
+
+    [Fact]
+    public void StyleNote_is_empty_until_learned_and_file_names_are_safe()
+    {
+        Assert.Equal("", Prompts.StyleNote("nobody@example.com"));
+        Assert.EndsWith(@"style\a_b@example.com.md", Prompts.StyleFile("a/b@example.com"));
+        var file = Prompts.StyleFile("writer@example.com");
+        Directory.CreateDirectory(Path.GetDirectoryName(file));
+        File.WriteAllText(file, "- Opens with Hi\n");
+        Assert.EndsWith("Follow this in anything you draft for them:\n- Opens with Hi", Prompts.StyleNote("writer@example.com"));
+    }
+
     static string Marked(string line) => string.Concat(Context.Runs(line).Select(r => r.bold ? $"<{r.text}>" : r.text));
 
     [Theory]
