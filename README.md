@@ -97,6 +97,8 @@ scripts\build.ps1
 scripts\install.ps1
 ```
 
+The script first checks what it depends on: 64-bit PowerShell, 64-bit classic Outlook, .NET Framework 4.8, a finished build, and Claude Code installed and signed in. If anything is missing it lists each problem with how to fix it, changes nothing, and stops. `scripts\install.ps1 -SkipChecks` installs regardless.
+
 This needs no administrator rights. It copies the build to `%LOCALAPPDATA%\ProjectPA\app\<timestamp>` and registers the add-in for your user under `HKEY_CURRENT_USER`. It does not close or restart Outlook.
 
 **6. Restart Outlook.** A **PApii** tab appears in the ribbon, and a PApii group at the end of the Home tab. Select an email and click **Draft Reply**.

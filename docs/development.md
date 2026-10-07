@@ -41,7 +41,19 @@ This runs `dotnet build ProjectPA.sln -c Release` followed by `dotnet test`. Bot
 scripts\install.ps1
 ```
 
-The script needs no administrator rights and does three things:
+Before changing anything the script checks its dependencies and, if any is missing, prints each problem with instructions and exits with code 1:
+
+| Check | How it is detected |
+|---|---|
+| 64-bit PowerShell | `[Environment]::Is64BitProcess` |
+| Classic Outlook, 64-bit | The `OUTLOOK.EXE` entry under App Paths, and `Bitness` under `HKLM\SOFTWARE\Microsoft\Office\16.0\Outlook` |
+| .NET Framework 4.8 | `Release` of 528040 or more under `NET Framework Setup\NDP\v4\Full` |
+| A finished build | `ProjectPA.AddIn.dll` in the Release output. When it is absent the script also checks the .NET SDK and the Office interop assemblies, which the build will need |
+| Claude Code, signed in | Found in the same order the add-in uses, then `claude auth status` must report `loggedIn` |
+
+`-SkipChecks` installs anyway, for example to install before signing in to Claude Code.
+
+Once the checks pass, the script needs no administrator rights and does three things:
 
 1. Copies the Release build to a new folder, `%LOCALAPPDATA%\ProjectPA\app\<timestamp>`. Each build gets its own folder so that installing works while Outlook still has the previous build loaded.
 2. Registers the two COM classes under `HKCU\Software\Classes`: `ProjectPA.Connect` (the add-in) and `ProjectPA.PaneHost` (the control shown in the task pane). The values are the same ones `regasm /codebase` would write, but per user.
