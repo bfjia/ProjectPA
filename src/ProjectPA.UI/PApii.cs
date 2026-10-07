@@ -48,7 +48,7 @@ public class Card : Observable
 }
 
 // One per pane: the state the pane binds to, and the actions that fill it.
-public class Assistant : Observable
+public class PApii : Observable
 {
     const string DefaultHint = "Ask about this email, or say what to change. Enter sends.";
     static readonly Dictionary<string, string> Tweaks = new()
@@ -80,7 +80,7 @@ public class Assistant : Observable
     public ICommand Send { get; }
     public ICommand Stop { get; }
 
-    public Assistant()
+    public PApii()
     {
         Send = new Cmd(() =>
         {
@@ -192,7 +192,7 @@ public class Assistant : Observable
         {
             Directory.Delete(dir, true);
             throw new InvalidOperationException(off
-                ? $"The assistant is switched off for {t.Account}. You can change this in Settings."
+                ? $"PApii is switched off for {t.Account}. You can change this in Settings."
                 : "There is no message to work from here.");
         }
         Context.Digest(t, dir);

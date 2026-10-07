@@ -1,4 +1,4 @@
-<UserControl x:Class="ProjectPA.UI.AssistantPane"
+<UserControl x:Class="ProjectPA.UI.PApiiPane"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="#F5F5F5" FontFamily="Segoe UI" FontSize="13" Foreground="#222">
@@ -92,7 +92,7 @@
     </Border>
 
     <TextBlock Grid.Row="1" Margin="24" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Foreground="#6B6B6B"
-               Text="Select an email, then choose Assist, Draft Reply or Summarize on the Assistant tab.">
+               Text="Select an email, then choose Assist, Draft Reply or Summarize on the PApii tab.">
       <TextBlock.Style>
         <Style TargetType="TextBlock">
           <Setter Property="Visibility" Value="Collapsed" />

@@ -4,7 +4,8 @@ namespace ProjectPA;
 
 public static class Paths
 {
-    public static readonly string Data = Path.Combine(
+    // PROJECTPA_DATA: point tests and experiments somewhere else
+    public static readonly string Data = Environment.GetEnvironmentVariable("PROJECTPA_DATA") ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProjectPA");
     public static string Logs => Dir("logs");
     public static string Sessions => Dir("sessions");
@@ -53,21 +54,56 @@ public class Settings
     }
 }
 
+public class PromptInfo
+{
+    public string Name { get; set; }
+    public string Title { get; set; }
+    public string About { get; set; }
+}
+
 public static class Prompts
 {
-    // file in %LOCALAPPDATA%\ProjectPA\prompts beats built-in text; {{key}} gets replaced
+    const string Meta = " Keep the ---META--- part: the suggestion pills are built from it.";
+
+    // what the prompt editor lists
+    public static readonly PromptInfo[] All =
+    {
+        new() { Name = "system", Title = "Ground rules", About = "Sent once at the start of every email you work on: who PApii is and the rules it always follows. Placeholders: {{name}}, {{account}}, {{today}}. A change applies from the next email." },
+        new() { Name = "draft-reply", Title = "Draft Reply", About = "The request behind Draft Reply. Placeholders: {{instructions}}, {{signoff}}, {{tone}}." + Meta },
+        new() { Name = "followup", Title = "Follow-up", About = "Used when you type in the pane or click a pill such as Shorter. Placeholders: {{text}}, {{signoff}}, {{tone}}." },
+        new() { Name = "summarize", Title = "Summarize", About = "The request behind Summarize. No placeholders." },
+        new() { Name = "assist", Title = "Assist", About = "The request behind Assist. No placeholders." + Meta },
+    };
+
+    static string CustomFile(string name) => Path.Combine(Paths.Data, "prompts", name + ".md");
+    public static bool IsCustom(string name) => File.Exists(CustomFile(name));
+
+    public static string BuiltIn(string name)
+    {
+        using var r = new StreamReader(typeof(Prompts).Assembly.GetManifestResourceStream(name + ".md"));
+        return r.ReadToEnd().Trim();
+    }
+
+    // the user's version if there is one, else built-in; {{key}} gets replaced
     public static string Get(string name, params (string key, string value)[] fill)
     {
-        var custom = Path.Combine(Paths.Data, "prompts", name + ".md");
-        string text;
-        if (File.Exists(custom)) text = File.ReadAllText(custom);
-        else
-        {
-            using var r = new StreamReader(typeof(Prompts).Assembly.GetManifestResourceStream(name + ".md"));
-            text = r.ReadToEnd();
-        }
+        var text = IsCustom(name) ? File.ReadAllText(CustomFile(name)).Trim() : BuiltIn(name);
         foreach (var (key, value) in fill) text = text.Replace("{{" + key + "}}", value ?? "");
         return text.Trim();
+    }
+
+    // empty or same as built-in: no custom file, so built-in updates keep arriving
+    public static void Save(string name, string text)
+    {
+        text = (text ?? "").Replace("\r\n", "\n").Trim();
+        if (text.Length == 0 || text == BuiltIn(name).Replace("\r\n", "\n")) { Reset(name); return; }
+        Directory.CreateDirectory(Path.GetDirectoryName(CustomFile(name)));
+        File.WriteAllText(CustomFile(name), text);
+    }
+
+    public static void Reset(string name)
+    {
+        if (IsCustom(name)) File.Delete(CustomFile(name));
     }
 
     public static string Tone(string tone) => tone switch

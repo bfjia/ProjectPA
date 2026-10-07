@@ -1,6 +1,6 @@
 # Development
 
-This document covers building, testing, installing and debugging ProjectPA.
+This document covers building, testing, installing and debugging ProjectPA. The add-in it builds is called PApii in Outlook; code, folders and registry names use ProjectPA.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ NuGet packages restored from nuget.org: `Newtonsoft.Json` for the product, and `
 | Path | Purpose |
 |---|---|
 | `src/ProjectPA.Core` | Logic with no Outlook or UI dependency: the Claude runner, the thread model and its rendering, attachment text extraction, prompts, settings, logging. |
-| `src/ProjectPA.UI` | The WPF assistant pane, the settings window, and the `Assistant` class that drives them. No Outlook dependency. |
+| `src/ProjectPA.UI` | The WPF pane, the settings and prompts windows, and the `PApii` class that drives the pane. No Outlook dependency. |
 | `src/ProjectPA.AddIn` | The COM add-in Outlook loads: ribbon, task pane hosting, and all Outlook object-model code. |
 | `src/ProjectPA.DevHost` | A small executable that shows the same pane in a normal window, for working without Outlook. |
 | `tests/ProjectPA.Core.Tests` | Unit tests for the core. |
@@ -79,8 +79,9 @@ By default it works on a built-in sample thread (a three-message budget discussi
 | `--click "Label"` | Then press the button or pill with that label on the last card, for example `Shorter` or `Reply All`. |
 | `--say "text"` | Then type the text into the pane and send it. |
 | `--attach file` | Add a file to the sample thread as an attachment. |
+| `--show prompts\|settings` | Show the prompts window or the settings window instead of the pane. |
 | `--model haiku` | Model for this run only; not saved. |
-| `--shot out.png` | When everything has finished, save a picture of the pane and exit. The window stays off screen. Text passed to "insert into reply" is written to `out.png.inserted.txt`. |
+| `--shot out.png` | When everything has finished, save a picture of the pane (or of the `--show` window) and exit. The window stays off screen. Text passed to "insert into reply" is written to `out.png.inserted.txt`. |
 | `--outlook` | Work on the email selected in the running Outlook instead of the sample thread. |
 | `--dump file` | Read the email selected in the running Outlook, write the shape of its thread to the file, and exit. Only counts, sizes, dates and flags are written, never names or text. |
 
@@ -120,11 +121,18 @@ Everything the add-in writes at run time is under `%LOCALAPPDATA%\ProjectPA`:
 | `settings.json` | Model, effort and other options. |
 | `logs\<date>.log` | One log file per day. |
 | `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Deleted after the number of days set in Settings. |
-| `prompts\<name>.md` | Optional. A file here replaces the built-in prompt of the same name. |
+| `prompts\<name>.md` | Prompts the user changed in the Prompts window. A file here replaces the built-in prompt of the same name. |
+
+Setting the environment variable `PROJECTPA_DATA` to a folder makes everything above live there instead. The unit tests use it so that they never touch real settings or prompts, and it is handy for trying something in the DevHost without disturbing the installed add-in:
+
+```powershell
+$env:PROJECTPA_DATA = "$env:TEMP\papii-scratch"
+Start-Process src\ProjectPA.DevHost\bin\Release\net48\ProjectPA.DevHost.exe
+```
 
 ## Troubleshooting
 
-**The Assistant tab does not appear.** Open File, Options, Add-ins. If ProjectPA Assistant is listed under Inactive or Disabled, select "COM Add-ins" (or "Disabled Items") in the Manage box and re-enable it. Check `LoadBehavior` in the registry key above: 3 means load at startup; Outlook sets it to 2 after a load failure. Then read the newest file in `%LOCALAPPDATA%\ProjectPA\logs`; a successful load writes a `connected` line.
+**The PApii tab does not appear.** Open File, Options, Add-ins. If PApii is listed under Inactive or Disabled, select "COM Add-ins" (or "Disabled Items") in the Manage box and re-enable it. Check `LoadBehavior` in the registry key above: 3 means load at startup; Outlook sets it to 2 after a load failure. Then read the newest file in `%LOCALAPPDATA%\ProjectPA\logs`; a successful load writes a `connected` line.
 
 **"Claude Code was not found."** The add-in looks for `claude.exe` in this order: the path in `settings.json` (`ClaudePath`), the `PATH`, `%USERPROFILE%\.local\bin`, and then the newest copy bundled with the Claude Code extension for VS Code. Set `ClaudePath` if yours is elsewhere.
 

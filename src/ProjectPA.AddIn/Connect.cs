@@ -80,7 +80,12 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
             SettingsWindow.Show(new OutlookHost(app, window).Accounts, hwnd);
             return;
         }
-        var a = Pane(window, hwnd).Assistant;
+        if (c.Tag == "prompts")
+        {
+            PromptsWindow.Show(hwnd);
+            return;
+        }
+        var a = Pane(window, hwnd).PApii;
         switch (c.Tag)
         {
             case "assist": a.Go(a.Assist); break;
@@ -104,17 +109,17 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     });
 
     // Pane of one window (main, read or compose). Made on first use.
-    AssistantPane Pane(object window, IntPtr hwnd)
+    PApiiPane Pane(object window, IntPtr hwnd)
     {
         if (panes.Count == 0) Task.Run(() => Context.PurgeSessions(Settings.Current.KeepDays));   // once per Outlook run
         foreach (var gone in panes.Keys.Where(h => !IsWindow(h)).ToList()) panes.Remove(gone);
 
         if (!panes.TryGetValue(hwnd, out var p))
         {
-            p = factory.CreateCTP("ProjectPA.PaneHost", "Assistant", window);
+            p = factory.CreateCTP("ProjectPA.PaneHost", "PApii", window);
             p.DockPosition = Office.MsoCTPDockPosition.msoCTPDockPositionRight;
             p.Width = 420;
-            ((PaneHost)(object)p.ContentControl).Pane.Assistant.Host = new OutlookHost(app, window);
+            ((PaneHost)(object)p.ContentControl).Pane.PApii.Host = new OutlookHost(app, window);
             panes[hwnd] = p;
         }
         p.Visible = true;
@@ -141,7 +146,7 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
 [ComVisible(true), Guid("84A220F1-8ABF-4080-9B87-ECE5C86C5F67"), ProgId("ProjectPA.PaneHost")]
 public class PaneHost : UserControl
 {
-    public AssistantPane Pane { get; } = new();
+    public PApiiPane Pane { get; } = new();
 
     // an unhandled error in pane code would otherwise take Outlook down with it
     static PaneHost() => System.Windows.Threading.Dispatcher.CurrentDispatcher.UnhandledException += (_, e) =>
@@ -154,6 +159,6 @@ public class PaneHost : UserControl
     {
         var host = new ElementHost { Dock = DockStyle.Fill, Child = Pane };
         Controls.Add(host);
-        Pane.Assistant.FocusInput += () => host.Focus();   // keyboard focus has to enter the pane's window first
+        Pane.PApii.FocusInput += () => host.Focus();   // keyboard focus has to enter the pane's window first
     }
 }

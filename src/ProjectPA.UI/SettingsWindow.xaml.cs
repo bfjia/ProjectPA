@@ -15,7 +15,7 @@ public partial class SettingsWindow : Window
         w.ShowDialog();
     }
 
-    SettingsWindow(IEnumerable<string> accountList)
+    public SettingsWindow(IEnumerable<string> accountList)
     {
         InitializeComponent();
         var s = Settings.Current;

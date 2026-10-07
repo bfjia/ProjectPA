@@ -4,7 +4,7 @@
   <ribbon>
     <tabs>
       <tab idMso="{HOME}">
-        <group id="paQuick" label="Assistant">
+        <group id="paQuick" label="PApii">
           <button id="paQAssist" tag="assist" label="Assist" size="large" imageMso="ResearchPane" onAction="Do"
                   screentip="What is this email and what should I do with it?" />
           <button id="paQDraft" tag="draft" label="Draft Reply" size="large" imageMso="Reply" onAction="Do"
@@ -14,7 +14,7 @@
         </group>
       </tab>
 
-      <tab id="paTab" label="Assistant">
+      <tab id="paTab" label="PApii">
         <group id="paEmail" label="This email">
           <button id="paAssist" tag="assist" label="Assist" size="large" imageMso="ResearchPane" onAction="Do"
                   screentip="What is this email and what should I do with it?"
@@ -64,9 +64,12 @@
                     supertip="When ticked, attachments in the thread are read along with the messages. Untick for speed or privacy." />
         </group>
 
-        <group id="paApp" label="Assistant">
+        <group id="paApp" label="PApii">
           <button id="paShow" tag="pane" label="Show Pane" size="large" imageMso="ReviewShowMarkupMenu" onAction="Do"
-                  screentip="Open the assistant pane" />
+                  screentip="Open the PApii pane" />
+          <button id="paPrompts" tag="prompts" label="Prompts" size="large" imageMso="TextBoxInsert" onAction="Do"
+                  screentip="View and change the instructions PApii gives Claude"
+                  supertip="Edit the wording behind Draft Reply, Assist, Summarize and follow-ups, or the ground rules sent with every email. Each one can be reset to the built-in text." />
           <button id="paSettings" tag="settings" label="Settings" size="large" imageMso="PropertySheet" onAction="Do"
                   screentip="Accounts, sign-off, storage and the Claude Code location" />
         </group>
@@ -76,7 +79,7 @@
 
   <contextMenus>
     <contextMenu idMso="ContextMenuMailItem">
-      <menu id="paCtx" label="Assistant">
+      <menu id="paCtx" label="PApii">
         <button id="paCtxAssist" tag="assist" label="Assist" onAction="Do" />
         <button id="paCtxDraft" tag="draft" label="Draft Reply" onAction="Do" />
         <button id="paCtxSummarize" tag="summarize" label="Summarize" onAction="Do" />

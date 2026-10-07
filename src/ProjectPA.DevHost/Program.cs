@@ -7,7 +7,7 @@ using ProjectPA;
 using ProjectPA.AddIn;
 using ProjectPA.UI;
 
-// Runs the assistant pane in a plain window, on a sample thread.
+// Runs the PApii pane in a plain window, on a sample thread.
 //   --do assist|draft|summarize   run an action on start
 //   --with "text"                 instructions for --do draft
 //   --click "Label"               then press that button or suggestion on the last card
@@ -15,8 +15,9 @@ using ProjectPA.UI;
 //   --attach file                 add a file to the sample thread as an attachment
 //   --outlook                     work on the email selected in the running Outlook instead of the sample
 //   --dump file                   with --outlook: write thread statistics (no content) to file and exit
+//   --show prompts|settings       show that window instead of the pane
 //   --model haiku                 model for this run (not saved)
-//   --shot out.png                save a picture of the pane when done, then exit (window stays off screen)
+//   --shot out.png                save a picture of the pane (or the --show window) when done, then exit; stays off screen
 static class Program
 {
     [STAThread]
@@ -36,14 +37,20 @@ static class Program
         if (Arg("--model") is { } m) Settings.Current.Model = m;
         var shot = Arg("--shot");
         var inserted = new List<string>();
-        var pane = new AssistantPane();
-        var a = pane.Assistant;
+        var pane = new PApiiPane();
+        var a = pane.PApii;
         a.Host = args.Contains("--outlook") ? OutlookHost.Attach() : new SampleHost
         {
             Attach = Arg("--attach"),
             OnInsert = (text, all) => { if (shot == null) MessageBox.Show(text, all ? "Reply All" : "Reply"); else inserted.Add(text); },
         };
-        var win = new Window { Title = "ProjectPA DevHost", Width = 440, Height = 820, Content = pane };
+        var win = Arg("--show") switch
+        {
+            "prompts" => new PromptsWindow(),
+            "settings" => new SettingsWindow(a.Host.Accounts),
+            _ => new Window { Title = "ProjectPA DevHost", Width = 440, Height = 820, Content = pane },
+        };
+        win.WindowStartupLocation = WindowStartupLocation.Manual;
         if (shot != null) { win.Left = -4000; win.Top = 0; win.ShowActivated = false; win.ShowInTaskbar = false; }
 
         win.Loaded += async (_, _) =>
@@ -67,9 +74,10 @@ static class Program
 
             if (shot == null) return;
             await Task.Delay(200);
-            pane.UpdateLayout();
-            var bmp = new RenderTargetBitmap((int)pane.ActualWidth, (int)pane.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-            bmp.Render(pane);
+            var view = (FrameworkElement)VisualTreeHelper.GetChild(win, 0);   // whole client area; Content alone is offset by its margin
+            view.UpdateLayout();
+            var bmp = new RenderTargetBitmap((int)view.ActualWidth, (int)view.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            bmp.Render(view);
             var png = new PngBitmapEncoder { Frames = { BitmapFrame.Create(bmp) } };
             using (var f = File.Create(shot)) png.Save(f);
             if (inserted.Count > 0) File.WriteAllText(shot + ".inserted.txt", string.Join("\n=====\n", inserted));

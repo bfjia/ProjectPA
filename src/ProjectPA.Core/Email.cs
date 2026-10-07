@@ -25,7 +25,7 @@ public class EmailThread
     public List<Message> Messages = new();
 }
 
-// What the assistant needs from the mail client: Outlook in the add-in, a fake in DevHost.
+// What PApii needs from the mail client: Outlook in the add-in, a fake in DevHost.
 public interface IHost
 {
     string CurrentKey { get; }                      // identifies the selected item, null if none

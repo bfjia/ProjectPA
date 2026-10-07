@@ -38,8 +38,8 @@ foreach ($progId in $classes.Keys) {
 
 $addin = 'HKCU:\Software\Microsoft\Office\Outlook\Addins\ProjectPA.Connect'
 New-Item $addin -Force | Out-Null
-Set-ItemProperty $addin FriendlyName 'ProjectPA Assistant'
-Set-ItemProperty $addin Description 'Personal assistant for email, powered by Claude Code.'
+Set-ItemProperty $addin FriendlyName 'PApii'
+Set-ItemProperty $addin Description 'PApii, a personal assistant for email, powered by Claude Code.'
 Set-ItemProperty $addin LoadBehavior 3 -Type DWord
 
 # old builds: only when Outlook is closed, it may still be loading files from them
