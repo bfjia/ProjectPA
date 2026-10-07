@@ -8,6 +8,7 @@ Answer with these fields:
 - "start" and "end": local time as "YYYY-MM-DDTHH:MM". If no end or length is given, assume 30 minutes for a call and 60 for a meeting.
 - "location": the room, address or video-call link. Empty if none is given.
 - "notes": two or three lines worth having in the calendar entry: who it is with and what it is about.
+- "evidence": the sentence in the thread that the date and time come from, copied word for word in quotation marks, then who wrote it and the date of their message in brackets. For example: "Does Thursday at 2 pm work for you?" (Dana Lee, 6 Oct). The user checks your answer against it.
 - "confirmed": true if both sides have agreed to this time, false if it is only proposed.
 
 If "found" is false, leave the other text fields empty.

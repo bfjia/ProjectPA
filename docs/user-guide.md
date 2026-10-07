@@ -28,6 +28,8 @@ Select or open the message you want to answer and click **Draft Reply**.
    - The pills underneath are one-click changes: **Shorter**, **Longer**, **More formal**, **Friendlier**, and up to three alternative replies PApii thinks you might prefer, such as "Decline politely". Each produces a new draft below the first, so you can compare.
 4. To steer the draft in your own words, type in the box at the bottom ("say Tuesday works but ask for a later start") and press Enter. Shift+Enter adds a line break.
 
+A draft only ever goes into a reply to the email it was written for. If you have selected a different email by the time you click Reply, Reply All or Insert, PApii does not open a reply to that other email; it tells you which email the draft belongs to. Select that email again and click the button once more, or use Copy.
+
 To give instructions before the first draft, open the arrow under Draft Reply and choose **Draft with Instructions**. The cursor moves to the box in the pane; type what the reply should do and press Enter.
 
 ### Assist
@@ -44,7 +46,7 @@ Use **Find Times** when a thread is trying to arrange a meeting or call.
 
 1. PApii reads the thread to work out what is being arranged, how long it is, and any times the other side has already proposed.
 2. It checks your calendar for the next two weeks (you can change this in Settings) within your working hours.
-3. A card lists the times they proposed, each marked "you are free" or "you have a conflict", followed by tick boxes: their proposals that are free, and up to five further free times. If one of their proposals is free it is ticked for you; otherwise all the suggestions are.
+3. A card lists the times they proposed, each marked "you are free" or "you have a conflict", followed by tick boxes: their proposals that are free, and up to five further free times. If one of their proposals is free it is ticked for you; otherwise all the suggestions are. Every time on the card has been checked against your calendar. A time they proposed is checked even when it lies further ahead than the period PApii normally looks at, and the further times PApii offers are always inside your working hours.
 4. Tick the times you want, then click **Draft reply**. With a single ticked time that they proposed, the draft accepts it. Otherwise the draft offers the ticked times and asks which suits.
 
 **Hold on calendar** adds the ticked times to your calendar as tentative entries titled "HOLD: ...", so nothing else gets booked over them while you wait for an answer. They are removed automatically when you later add the agreed meeting from the same thread with Add to Calendar.
@@ -56,10 +58,10 @@ What leaves your computer for this step is only a list of your free time windows
 Use **Add to Calendar** when a thread has settled on a date and time.
 
 1. PApii finds the meeting in the thread: title, date, start and end, place or video link.
-2. A card shows them as fields you can correct, with a line saying when it is. Two warnings can appear: **Not confirmed** when the thread only proposes the time and nobody has agreed yet, and **Conflict** when your calendar already has something then.
+2. A card shows them as fields you can correct, with a line saying when it is. Under it, **From the thread** quotes the sentence the date and time were taken from, with who wrote it and when, for example: "Does Thursday at 2 pm work for you?" (Dana Lee, 6 Oct). Compare it with the When line before adding the entry; it is the quickest way to catch a wrong day or a time converted from the wrong zone. Two warnings can appear: **Not confirmed** when the thread only proposes the time and nobody has agreed yet, and **Conflict** when your calendar already has something then.
 3. Check the **Time zone**. It says which zone the date and times in the card are in, and starts on your computer's own zone, because PApii converts times from the thread to your local time. If you would rather enter the time as the other side stated it ("3 pm Eastern"), type that time and pick their zone from the menu. Outlook stores the zone with the entry and shows it at the right moment in your calendar; the confirmation also tells you what that is in your own time.
 4. Choose the calendar. It starts on the calendar of the account the email arrived in, and remembers your choice per account.
-5. Click **Add to calendar**. The entry is created and the card confirms it. **Open** shows the entry in Outlook, where you can add a reminder or use Invite Attendees to send it to others.
+5. Click **Add to calendar**. The entry is created and the card confirms it. **Open** shows the entry in Outlook, where you can add a reminder or use Invite Attendees to send it to others. If you changed the date, the times or the time zone, PApii first checks your calendar for the new time. When something is already there, the card shows the Conflict warning and nothing is added yet; click **Add to calendar** again to add the entry anyway.
 
 PApii creates an entry on your own calendar only. It does not send meeting invitations; an option for that is on the list of future work.
 
@@ -101,7 +103,7 @@ Each email you use PApii on gets a saved session: a folder on your computer with
 - **Saved Sessions** on the PApii tab lists the most recent ones by subject. Picking one opens its folder, so you can see exactly what was saved and sent for that email. To remove a single session, delete its folder there.
 - **Delete All Saved Sessions**, the last entry in that menu, removes every one after asking you to confirm.
 
-Deleting a session also removes the copy of the conversation that Claude Code keeps on your computer. Your emails in Outlook are never affected.
+Deleting a session also removes the copy of the conversation that Claude Code keeps on your computer. When PApii deletes a session, both go at once. When you delete a session's folder yourself, Claude Code's copy is removed the next time Outlook starts. Your emails in Outlook are never affected.
 
 ### Asking questions
 
@@ -134,7 +136,7 @@ Model, effort, tone and the attachment option are remembered and apply to every 
 
 ## Settings
 
-- **Accounts.** One tick box per mail account. Untick an account to switch PApii off for it: PApii will refuse to read mail from that account.
+- **Accounts.** One tick box per mail account. Untick an account to switch PApii off for it: PApii will refuse to read mail from that account. This covers mail kept outside the account's own mailbox too, such as a shared mailbox or an online archive: PApii goes by the account a reply would be sent from. If it cannot tell which account an email belongs to while any account is switched off, it does not read that email and says so.
 - **Sign-off.** How drafts end. Leave it blank for a closing line followed by your first name (Outlook then adds your signature as usual). Type `none` for no sign-off. Anything else is used exactly as written.
 - **Writing style.** One line per account with three buttons. **Learn** reads about 30 of your recent sent emails from that account (your own words only, with quoted text removed), sends them to Claude once, and saves a short description of how you write: your greetings and sign-offs, how formal you are, your habits. From then on every draft for that account is told to follow it. **Edit** opens the description in Notepad so you can correct it. **Forget** deletes it. Learning is per account, so a work mailbox and a personal one can sound different.
 - **Calendars that count as busy.** Every calendar Outlook knows about, across all accounts. Find Times treats you as busy whenever a ticked calendar has an entry that is not marked Free. All are ticked to begin with.
@@ -204,6 +206,9 @@ A working copy of each thread, with its attachments, is kept on your computer un
 Errors are shown in the pane in red. The most common ones:
 
 - **"Select an email first."** No message was selected, or the selected item is not an email (for example a meeting request).
+- **"This draft was written for ..., which is no longer the email selected here."** You clicked Reply, Reply All or Insert after selecting a different email. Select the email the draft is for and click again, or use Copy.
+- **"PApii's settings file could not be read ..."** The file `settings.json` is damaged. PApii reads no mail in this state, because it cannot know which accounts you switched off. Open **Settings** on the PApii tab, set the accounts and the other options again, and click Save.
+- **"PApii could not tell which account the mail in ... belongs to ..."** The email sits in a mailbox or data file that PApii cannot connect to one of your accounts, and at least one account is switched off in Settings. PApii leaves the email unread to be safe.
 - **"Claude Code was not found."** See the troubleshooting section of `docs/development.md`.
 - **A message about login or usage limits.** This comes from Claude Code itself. For login problems, run `claude` in a terminal and sign in.
 

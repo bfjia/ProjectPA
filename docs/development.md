@@ -22,7 +22,7 @@ NuGet packages restored from nuget.org: `Newtonsoft.Json` for the product, and `
 | `src/ProjectPA.UI` | The WPF pane, the settings and prompts windows, and the `PApii` class that drives the pane. No Outlook dependency. |
 | `src/ProjectPA.AddIn` | The COM add-in Outlook loads: ribbon, task pane hosting, and all Outlook object-model code. |
 | `src/ProjectPA.DevHost` | A small executable that shows the same pane in a normal window, for working without Outlook. |
-| `tests/ProjectPA.Core.Tests` | Unit tests for the core. |
+| `tests/ProjectPA.Core.Tests` | Unit tests for the core and for the pane's logic. |
 | `scripts` | Build, install and uninstall scripts. |
 
 All projects target .NET Framework 4.8, because that is the runtime classic Outlook loads add-ins into. Shared build settings are in `Directory.Build.props`.
@@ -34,6 +34,8 @@ scripts\build.ps1
 ```
 
 This runs `dotnet build ProjectPA.sln -c Release` followed by `dotnet test`. Both must pass before installing.
+
+The tests make no Claude call and need no Outlook. `ContextTests`, `ClaudeTests` and `PromptsTests` cover the core. `PApiiTests` covers the actions behind the pane (`PApii` in the UI project): it gives the pane a made-up mail client (`FakeHost`) and replaces `PApii.Runner`, the function every request to Claude goes through, with one that returns a prepared answer. `PApii` belongs to a UI thread, so each of those tests runs on its own thread with a message loop (`PApiiTests.OnPane`). The tests share one data folder and one settings file, which is why they do not run in parallel.
 
 ## Install into Outlook
 
@@ -67,6 +69,8 @@ To remove the add-in:
 scripts\uninstall.ps1              # removes registration and the installed files
 scripts\uninstall.ps1 -PurgeData   # also deletes settings, logs and saved sessions
 ```
+
+With `-PurgeData` the script also has Claude Code delete its own transcript of each saved session (`claude purge`), before the session folders go.
 
 ### Checking the registration without Outlook
 
@@ -135,7 +139,7 @@ Everything the add-in writes at run time is under `%LOCALAPPDATA%\ProjectPA`:
 | `app\<timestamp>` | Installed builds. |
 | `settings.json` | Model, effort and other options. |
 | `logs\<date>.log` | One log file per day. |
-| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Folders older than the number of days set in Settings (7 by default) are removed each time Outlook starts. |
+| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Folders older than the number of days set in Settings (7 by default) are removed each time Outlook starts, together with Claude Code's transcript of each. Transcripts left behind by a folder that was deleted by hand are removed at the same time. |
 | `prompts\<name>.md` | Prompts the user changed in the Prompts window. A file here replaces the built-in prompt of the same name. |
 | `style\<account>.md` | The writing-style description learned for an account, added to every draft request for it. |
 
@@ -148,6 +152,8 @@ Setting the environment variable `PROJECTPA_DATA` to a folder makes everything a
 **"Claude Code was not found."** The add-in looks for `claude.exe` in this order: the path in `settings.json` (`ClaudePath`), the `PATH`, `%USERPROFILE%\.local\bin`, and then the newest copy bundled with the Claude Code extension for VS Code. Set `ClaudePath` if yours is elsewhere.
 
 **Claude reports that you are not logged in.** Run `claude` once in a terminal and sign in. The add-in uses the same login. It removes `ANTHROPIC_API_KEY` from the environment of the process it starts, so that a key set on the machine does not divert usage from your subscription to API billing.
+
+**Every request fails after it used to work.** Claude Code updates itself, and the add-in depends on its command-line flags and on the shape of its output. Each time Outlook starts, the log gets a line such as `Claude Code 2.1.292 (Claude Code) at C:\...\claude.exe`. Compare the version on that line with the one from a day when things worked; the flags are all built in `Claude.Args`, and the tests in `ClaudeTests` show the output shapes the add-in reads.
 
 **Requests are slow.** Each successful request writes a line to the log with the total time, the time spent inside the API, and the wait for the first word. If the API time accounts for nearly all of it, the delay is on the service side (it tends to grow as the plan's usage limit is approached) and not in the add-in.
 

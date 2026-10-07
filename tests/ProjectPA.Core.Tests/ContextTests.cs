@@ -64,6 +64,65 @@ public class ContextTests
         Assert.DoesNotContain("Subject: RE: Budget", text);      // RE: alone is not a change
     }
 
+    // a two-message thread: Dana's first message, then a reply with this body
+    static string Reply(string body) => Context.Render(new EmailThread
+    {
+        Subject = "Budget", Account = "me@x.com", UserName = "Sam Jones",
+        Messages =
+        {
+            new Message { From = "Dana Lee <dana@x.com>", Subject = "Budget", Body = "Hi Sam,\n\nCan you review the attached budget before Friday? Finance needs it signed off.\n\nThanks, Dana" },
+            new Message { From = "Dana Lee <dana@x.com>", Subject = "RE: Budget", Body = body, Selected = true },
+        },
+    });
+
+    static int Count(string text, string part) => text.Split(new[] { part }, StringSplitOptions.None).Length - 1;
+
+    [Fact]
+    public void Render_cuts_a_quote_the_thread_already_has()
+    {
+        // re-wrapped, with ">" marks, an image placeholder and a rewritten link: still the same text
+        var text = Reply("Sounds good.\n\nOn Mon, Oct 5, 2026 at 3:14 PM Dana Lee <dana@x.com>\nwrote:\n> Hi Sam,\n>\n> Can you review the attached budget\n> before Friday? [cid:image002.png@01DC1234.5678] Finance needs\n> it signed off. <https://safelinks.example/abc>\n>\n> Thanks, Dana");
+        Assert.Contains("Sounds good.", text);
+        Assert.Equal(1, Count(text, "Can you review"));
+        Assert.DoesNotContain("wrote:", text);
+    }
+
+    [Fact]
+    public void Render_keeps_a_quoted_message_the_thread_does_not_have()
+    {
+        // Bob answered Dana alone; his words exist only as a quote in her next message
+        var text = Reply("Let us go with Bob's idea.\n\nFrom: Bob Ray <bob@x.com>\nSent: Tuesday, October 6, 2026 9:00 AM\nTo: Dana Lee <dana@x.com>\nSubject: RE: Budget\n\nI would rather cancel the November dinner than cut travel.\n\nFrom: Dana Lee <dana@x.com>\nSent: Monday, October 5, 2026 2:03 PM\nTo: Sam Jones; Bob Ray\nSubject: Budget\n\nHi Sam,\n\nCan you review the attached budget before Friday? Finance needs it signed off.\n\nThanks, Dana");
+        Assert.Contains("From: Bob Ray", text);
+        Assert.Contains("cancel the November dinner", text);
+        Assert.Equal(1, Count(text, "Can you review"));   // the part the thread has is still cut
+        Assert.DoesNotContain("Monday, October 5", text);
+    }
+
+    [Fact]
+    public void Render_keeps_answers_written_inside_the_quote()
+    {
+        var text = Reply("Answers below.\n\nOn Mon, Oct 5, 2026 at 3:14 PM Dana Lee <dana@x.com> wrote:\n> Can you review the attached budget before Friday?\nYes, I will have it done by Thursday morning.\n> Finance needs it signed off.\n> Thanks, Dana");
+        Assert.Contains("Yes, I will have it done by Thursday morning.", text);
+        Assert.Equal(2, Count(text, "Can you review"));   // the question stays with its answer
+        Assert.Equal(1, Count(text, "Thanks, Dana"));     // what follows the last answer is cut
+    }
+
+    [Fact]
+    public void Orphans_are_transcripts_whose_session_folder_is_gone()
+    {
+        var projects = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "pa-" + Guid.NewGuid())).FullName;
+        try
+        {
+            // Claude Code names a project's folder after its path, every other character a dash
+            var prefix = System.Text.RegularExpressions.Regex.Replace(Paths.Sessions, "[^A-Za-z0-9]", "-") + "-";
+            Directory.CreateDirectory(Path.Combine(projects, prefix + Path.GetFileName(Context.NewSession())));
+            Directory.CreateDirectory(Path.Combine(projects, prefix + "20260101-000000-000"));
+            Directory.CreateDirectory(Path.Combine(projects, "C--some-other-project"));
+            Assert.Equal(new[] { Path.Combine(Paths.Sessions, "20260101-000000-000") }, Context.Orphans(projects));
+        }
+        finally { Directory.Delete(projects, true); }
+    }
+
     [Fact]
     public void Render_drops_oldest_when_too_long()
     {
@@ -132,6 +191,12 @@ public class ContextTests
         Assert.False(Scheduling.IsFree(busy, Mon.AddHours(11), Mon.AddHours(12), buffer: 15));
         Assert.False(Scheduling.IsFree(busy, Mon.AddHours(10.5), Mon.AddHours(11.5)));
         Assert.True(Scheduling.IsFree(busy, Mon.AddHours(8), Mon.AddHours(9.5), buffer: 15));
+
+        // a suggested time has to sit wholly inside one free window
+        var windows = new[] { Block(0, 9, 10), Block(0, 13, 17) };
+        Assert.True(Scheduling.Fits(windows, Mon.AddHours(9), Mon.AddHours(10)));
+        Assert.False(Scheduling.Fits(windows, Mon.AddHours(9.5), Mon.AddHours(10.5)));
+        Assert.False(Scheduling.Fits(windows, Mon.AddHours(20), Mon.AddHours(21)));
     }
 
     [Fact]
@@ -155,6 +220,7 @@ public class ContextTests
     {
         Assert.Equal("object", (string)Newtonsoft.Json.Linq.JObject.Parse(Scheduling.TimesSchema)["type"]);
         Assert.Equal("object", (string)Newtonsoft.Json.Linq.JObject.Parse(Scheduling.EventSchema)["type"]);
+        Assert.Equal("object", (string)Newtonsoft.Json.Linq.JObject.Parse(Scheduling.TasksSchema)["type"]);
     }
 
     [Theory]

@@ -10,4 +10,4 @@ After the body, on a new line, write exactly ---META--- and then one line of JSO
 {"intents": ["Decline politely", "Ask for more time"], "meeting": null}
 
 "intents": up to three labels of two to five words, each naming a clearly different reply the user might prefer over the one you wrote.
-"meeting": null, unless the thread shows a meeting time that both sides have agreed. In that case use {"title": "...", "start": "YYYY-MM-DDTHH:MM", "end": "YYYY-MM-DDTHH:MM", "location": "..."}.
+"meeting": null, unless the thread shows a meeting time that both sides have agreed. In that case use {"title": "...", "start": "YYYY-MM-DDTHH:MM", "end": "YYYY-MM-DDTHH:MM", "location": "...", "evidence": "..."}, where "evidence" is the sentence in the thread that the date and time come from, copied word for word in quotation marks, then who wrote it and the date of their message in brackets.

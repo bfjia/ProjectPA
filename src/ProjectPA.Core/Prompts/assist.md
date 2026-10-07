@@ -16,4 +16,4 @@ After that, on a new line, write exactly ---META--- and then one line of JSON in
 - "reply": a reply the user might send. "label" is two to five words. "instructions" is one sentence saying what that reply should say.
 - "find_times": the thread asks the user to propose or choose a meeting time.
 - "tasks": the thread contains concrete things for the user to do.
-"meeting": null, unless a meeting time has been agreed by both sides. In that case use {"title": "...", "start": "YYYY-MM-DDTHH:MM", "end": "YYYY-MM-DDTHH:MM", "location": "..."}.
+"meeting": null, unless a meeting time has been agreed by both sides. In that case use {"title": "...", "start": "YYYY-MM-DDTHH:MM", "end": "YYYY-MM-DDTHH:MM", "location": "...", "evidence": "..."}, where "evidence" is the sentence in the thread that the date and time come from, copied word for word in quotation marks, then who wrote it and the date of their message in brackets.

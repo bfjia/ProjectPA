@@ -40,7 +40,18 @@ public static class Context
     }
 
     public static int PurgeSessions(int days) =>
-        RemoveSessions(Directory.GetDirectories(Paths.Sessions).Where(d => Directory.GetCreationTime(d) < DateTime.Now.AddDays(-days)));
+        RemoveSessions(Directory.GetDirectories(Paths.Sessions).Where(d => Directory.GetCreationTime(d) < DateTime.Now.AddDays(-days)).Concat(Orphans()));
+
+    // Sessions whose folder was deleted by hand. Claude Code still holds a transcript of each, in a folder named after the session's path.
+    public static IEnumerable<string> Orphans(string projects = null)
+    {
+        projects ??= Path.Combine(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude"), "projects");
+        var prefix = Regex.Replace(Paths.Sessions, "[^A-Za-z0-9]", "-") + "-";
+        return !Directory.Exists(projects) ? new string[0] : Directory.GetDirectories(projects, prefix + "*")
+            .Select(d => Path.Combine(Paths.Sessions, Path.GetFileName(d).Substring(prefix.Length)))
+            .Where(d => !Directory.Exists(d));
+    }
 
     public static int ClearSessions() => RemoveSessions(Directory.GetDirectories(Paths.Sessions));
 
@@ -56,6 +67,7 @@ public static class Context
                     using (var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"purge {Claude.Quote(d)} --yes")
                         { UseShellExecute = false, CreateNoWindow = true }))
                         p.WaitForExit(20000);
+                if (!Directory.Exists(d)) continue;   // an orphan: only the transcript was left
                 Directory.Delete(d, true);
                 n++;
             }
@@ -64,27 +76,51 @@ public static class Context
         return n;
     }
 
-    // Cuts quoted history off a reply. Only for messages whose predecessors are in the thread.
-    public static string StripQuotes(string body)
+    const int MinNew = 15;   // letters and digits a quoted line needs before it counts as something the thread lacks
+    static readonly Regex HeaderLine = new(@"^(From|Sent|To|Cc|Bcc|Subject|Date|Importance|Reply-To|De|Envoyé|À|Objet|Von|Gesendet|An|Betreff|Datum|Da|Inviato|A|Oggetto|Van|Verzonden|Aan|Onderwerp|Para|Enviado|Enviada|Asunto|Assunto)\s?:(\s|$)", I);
+
+    // What is left of text for comparing: letters and digits only, so re-wrapping, ">" marks and punctuation do not matter.
+    // Image placeholders and <links> go first: a mail client rewrites those when it quotes.
+    public static string Squeeze(string s) => Regex.Replace(Regex.Replace(s ?? "", @"\[[^\]\n]*\]|<[^>\n]*>", ""), @"[^\p{L}\p{N}]+", "");
+
+    // Cuts quoted history off a reply. seen: the squeezed text of the messages before it; without it the whole quote goes.
+    public static string StripQuotes(string body, string seen = null)
     {
         var lines = (body ?? "").Replace("\r\n", "\n").Split('\n');
         var end = lines.Length;
         for (var i = 0; i < lines.Length && end == lines.Length; i++)
         {
             var l = lines[i].Trim();
-            var next = i + 1 < lines.Length ? lines[i + 1].Trim() : "";
-            var header = string.Join(" ", lines.Skip(i + 1).Take(4));   // Outlook's From/Sent/To block
-            if (Regex.IsMatch(l, @"^-{2,}\s*Original Message\s*-{2,}$", I)
-                || Regex.IsMatch(l, @"^(From|De|Von|Da|Van):\s", I) && Regex.IsMatch(header, @"\b(Sent|Date|Enviado|Gesendet|Envoyé|Inviato|Verzonden|Datum):\s", I)
-                // "On <date> <name> wrote:", which Gmail wraps onto a second line
-                || l.Length < 300 && Regex.IsMatch(l, @"^(On|Le|Am|El|Il|Op)\s", I) && (Wrote.IsMatch(l) || Wrote.IsMatch(next))
+            if (Opens(lines, i, l)
                 // ">" block, unless answers are interleaved with it
                 || l.StartsWith(">") && lines.Skip(i).All(x => x.Trim().Length == 0 || x.TrimStart().StartsWith(">")))
                 end = i;
         }
+        // The quote stays as far as its last line the thread does not have yet: answers written between
+        // the quoted lines, or a message that never reached this mailbox. Only the repeated tail goes.
+        if (seen != null)
+            for (var i = lines.Length - 1; i >= end; i--)
+            {
+                var l = lines[i].TrimStart('>', ' ', '\t').Trim();
+                var s = Squeeze(l);
+                if (s.Length < MinNew || HeaderLine.IsMatch(l) || Opens(lines, i, l) || Wrote.IsMatch(l) || seen.Contains(s)) continue;
+                end = i + 1;
+                break;
+            }
         // blank lines and Outlook's rule of underscores above the header
         while (end > 0 && lines[end - 1].Trim().All(c => c == '_')) end--;
         return string.Join("\n", lines.Take(end)).TrimEnd();
+    }
+
+    // Whether a quoted message starts at this line.
+    static bool Opens(string[] lines, int i, string l)
+    {
+        var next = i + 1 < lines.Length ? lines[i + 1].Trim() : "";
+        var header = string.Join(" ", lines.Skip(i + 1).Take(4));   // Outlook's From/Sent/To block
+        return Regex.IsMatch(l, @"^-{2,}\s*Original Message\s*-{2,}$", I)
+            || Regex.IsMatch(l, @"^(From|De|Von|Da|Van):\s", I) && Regex.IsMatch(header, @"\b(Sent|Date|Enviado|Gesendet|Envoyé|Inviato|Verzonden|Datum):\s", I)
+            // "On <date> <name> wrote:", which Gmail wraps onto a second line
+            || l.Length < 300 && Regex.IsMatch(l, @"^(On|Le|Am|El|Il|Op)\s", I) && (Wrote.IsMatch(l) || Wrote.IsMatch(next));
     }
 
     // After the host saved attachments: pull text out of what we can, keep what Claude reads itself, drop the rest.
@@ -149,7 +185,8 @@ public static class Context
 
     public static string Render(EmailThread t)
     {
-        var parts = t.Messages.Select((m, i) => RenderMessage(t, m, i)).ToList();
+        var seen = new StringBuilder();   // every message so far, squeezed: what a later quote may leave out
+        var parts = t.Messages.Select((m, i) => RenderMessage(t, m, i, seen)).ToList();
         var skip = 0;   // too long: oldest go first
         while (skip < parts.Count - 1 && parts.Skip(skip).Sum(p => p.Length) > MaxThread) skip++;
 
@@ -162,7 +199,7 @@ public static class Context
         return sb.ToString();
     }
 
-    static string RenderMessage(EmailThread t, Message m, int i)
+    static string RenderMessage(EmailThread t, Message m, int i, StringBuilder seen)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"## Message {i + 1} of {t.Messages.Count}{(m.Selected ? " (SELECTED)" : "")}");
@@ -182,7 +219,8 @@ public static class Context
         }
 
         // a forward carries content the thread may not have; the first message has nothing before it
-        var body = i == 0 || Regex.IsMatch(m.Subject ?? "", @"^\s*(fw|fwd):", I) ? (m.Body ?? "").Trim() : StripQuotes(m.Body);
+        var body = i == 0 || Regex.IsMatch(m.Subject ?? "", @"^\s*(fw|fwd):", I) ? (m.Body ?? "").Trim() : StripQuotes(m.Body, seen.ToString());
+        seen.Append('\n').Append(Squeeze(body));
         if (body.Length > MaxBody) body = body.Substring(0, MaxBody) + "\n[cut: message too long]";
         sb.AppendLine().AppendLine(body);
         foreach (var a in m.Attachments.Where(a => a.Text != null))

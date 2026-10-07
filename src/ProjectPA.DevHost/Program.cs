@@ -43,6 +43,8 @@ static class Program
             return;
         }
         if (Arg("--model") is { } m) Settings.Current.Model = m;
+        var keep = Settings.Current.KeepDays;
+        Task.Run(() => Context.PurgeSessions(keep));   // as Outlook does at start; test sessions pile up otherwise
         var shot = Arg("--shot");
         var inserted = new List<string>();
         var pane = new PApiiPane();

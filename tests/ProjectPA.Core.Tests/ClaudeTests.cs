@@ -101,6 +101,28 @@ public class ClaudeTests
     }
 
     [Fact]
+    public void Unreadable_settings_are_flagged_and_not_overwritten()
+    {
+        var file = Path.Combine(Directory.CreateDirectory(Paths.Data).FullName, "settings.json");
+        try
+        {
+            File.WriteAllText(file, "{ \"Model\": ");
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(10));
+            Assert.NotNull(Settings.Current.Broken);        // not defaults in silence: those would switch every account back on
+
+            Settings.Current.Save();                        // as a ribbon dropdown would
+            Assert.Equal("{ \"Model\": ", File.ReadAllText(file));
+
+            var s = Settings.Current;
+            s.Broken = null;                                // as saving from the Settings window does
+            s.Save();
+            Assert.Null(Settings.Current.Broken);
+            Assert.Contains("\"Model\": \"opus\"", File.ReadAllText(file));
+        }
+        finally { File.Delete(file); }
+    }
+
+    [Fact]
     public void Args_pick_mode_and_session()
     {
         var stream = Claude.Args(new ClaudeRequest { SessionId = "id1", SystemPrompt = "x" });

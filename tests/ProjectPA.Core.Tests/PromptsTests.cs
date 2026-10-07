@@ -1,5 +1,8 @@
 using System.Runtime.CompilerServices;
 
+// the data folder and the settings in it are shared by every test
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 // net48 lacks the attribute; the compiler only needs the name
 namespace System.Runtime.CompilerServices
 {

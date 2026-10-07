@@ -118,6 +118,7 @@ public partial class SettingsWindow : Window
         s.KeepDays = Number(keepDays, s.KeepDays, 1, 3650);
         s.SignOff = signOff.Text.Trim();
         s.ClaudePath = claudePath.Text.Trim().Trim('"') is { Length: > 0 } p ? p : null;
+        s.Broken = null;   // the user has seen and set everything: a file that could not be read may now be replaced
         s.Save();
         Close();
     }

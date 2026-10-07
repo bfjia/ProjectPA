@@ -29,7 +29,7 @@ public static class Scheduling
     public const string TimesSchema = """{"type":"object","properties":{"title":{"type":"string"},"minutes":{"type":"integer"},"their_times":""" + Times
         + ""","suggestions":""" + Times + ""","note":{"type":"string"}},"required":["title","minutes","their_times","suggestions","note"]}""";
 
-    public const string EventSchema = """{"type":"object","properties":{"found":{"type":"boolean"},"title":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"location":{"type":"string"},"notes":{"type":"string"},"confirmed":{"type":"boolean"}},"required":["found","title","start","end","location","notes","confirmed"]}""";
+    public const string EventSchema = """{"type":"object","properties":{"found":{"type":"boolean"},"title":{"type":"string"},"start":{"type":"string"},"end":{"type":"string"},"location":{"type":"string"},"notes":{"type":"string"},"evidence":{"type":"string"},"confirmed":{"type":"boolean"}},"required":["found","title","start","end","location","notes","evidence","confirmed"]}""";
 
     public const string TasksSchema = """{"type":"object","properties":{"tasks":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"due":{"type":"string"},"notes":{"type":"string"}},"required":["title","due","notes"]}}},"required":["tasks"]}""";
 
@@ -43,6 +43,9 @@ public static class Scheduling
 
     public static bool IsFree(IEnumerable<Busy> busy, DateTime start, DateTime end, int buffer = 0) =>
         !busy.Any(b => b.Start < end.AddMinutes(buffer) && b.End > start.AddMinutes(-buffer));
+
+    // whether a meeting sits wholly inside one of the free windows
+    public static bool Fits(IEnumerable<Busy> windows, DateTime start, DateTime end) => windows.Any(w => w.Start <= start && end <= w.End);
 
     // Free stretches inside working hours, day by day. Busy blocks are padded by the buffer; scraps under 15 minutes are dropped.
     public static List<Busy> FreeWindows(IEnumerable<Busy> busy, DateTime from, DateTime to, Settings s)

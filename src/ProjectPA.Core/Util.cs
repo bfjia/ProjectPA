@@ -46,6 +46,8 @@ public class Settings
     public List<string> AvailabilityCalendars = new();          // calendar ids that count as busy; empty = all
     public Dictionary<string, string> EventCalendars = new();   // account -> calendar last chosen for its events
 
+    [JsonIgnore] public string Broken;   // why settings.json could not be read; no mail is read and nothing is saved while set
+
     static readonly string file = Path.Combine(Paths.Data, "settings.json");
     static Settings current;
     static DateTime stamp;
@@ -59,7 +61,7 @@ public class Settings
             if (current == null || t != stamp)
             {
                 current = Load();
-                stamp = t;
+                stamp = current.Broken == null ? t : default;   // unreadable: look again next time
             }
             return current;
         }
@@ -67,17 +69,20 @@ public class Settings
 
     static Settings Load()
     {
+        if (!File.Exists(file)) return new();
         try
         {
             // Replace: by default the saved list would be appended to the defaults above
             return JsonConvert.DeserializeObject<Settings>(File.ReadAllText(file),
-                new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace }) ?? new();
+                new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace }) ?? throw new InvalidDataException("the file is empty");
         }
-        catch { return new(); }
+        // not defaults in silence: those would switch every account back on
+        catch (Exception e) { return new() { Broken = e.Message }; }
     }
 
     public void Save()
     {
+        if (Broken != null) return;   // would put defaults over a file we could not read; saving from the Settings window clears this
         Directory.CreateDirectory(Paths.Data);
         File.WriteAllText(file, JsonConvert.SerializeObject(this, Formatting.Indented));
         stamp = File.GetLastWriteTimeUtc(file);

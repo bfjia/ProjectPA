@@ -43,7 +43,7 @@ public class TaskDraft
 // What PApii needs from the mail client: Outlook in the add-in, a fake in DevHost.
 public interface IHost
 {
-    string CurrentKey { get; }                      // identifies the selected item, null if none
+    string CurrentKey { get; }                      // identifies the email an action here is about, null if none
     EmailThread ReadThread(string attachDir);       // null: list attachments without saving them
     void InsertReply(string text, bool replyAll);   // puts text in a reply window, never sends
     IEnumerable<string> Accounts { get; }

@@ -113,7 +113,7 @@ Pull the new code, then repeat steps 4 to 6. Installing works while Outlook is o
 
 ```powershell
 scripts\uninstall.ps1              # removes the registration and the installed files
-scripts\uninstall.ps1 -PurgeData   # also deletes settings, your edited prompts, logs and saved sessions
+scripts\uninstall.ps1 -PurgeData   # also deletes settings, your edited prompts, logs, saved sessions and Claude Code's transcripts of them
 ```
 
 Close Outlook first so the files can be deleted.

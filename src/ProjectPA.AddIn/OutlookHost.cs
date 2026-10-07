@@ -47,6 +47,8 @@ public class OutlookHost : IHost
             try
             {
                 var m = Current();
+                // replying inline: the message being answered stays selected, and a draft written for it still belongs here
+                if (m != null && !m.Sent && Explorer != null) m = Selected() ?? m;
                 return m == null ? null : m.Sent ? m.EntryID : "draft:" + (m.ConversationIndex ?? m.Subject);
             }
             catch { return null; }
@@ -68,6 +70,8 @@ public class OutlookHost : IHost
         var account = composing ? cur.SendUsingAccount : null;
         var store = account?.DeliveryStore ?? ((Outlook.MAPIFolder)(object)anchor.Parent).Store;
         account ??= AccountOf(store);
+        // a shared mailbox, archive or data file is no account's own store: go by the account a reply would be sent from
+        try { account ??= anchor.SendUsingAccount; } catch { }
         string sentFolder = null;
         try { sentFolder = store.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderSentMail).EntryID; } catch { }
 

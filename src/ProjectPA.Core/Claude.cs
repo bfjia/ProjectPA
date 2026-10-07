@@ -48,6 +48,18 @@ public static class Claude
             .Where(File.Exists).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
     }
 
+    // For the log: the CLI updates itself, and its flags and output can change with it. null when it is missing or will not start.
+    public static string Version()
+    {
+        try
+        {
+            using var p = Process.Start(new ProcessStartInfo(Find(), "--version") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true });
+            var v = p.StandardOutput.ReadToEndAsync();
+            return p.WaitForExit(10000) ? v.Result.Trim() : null;
+        }
+        catch { return null; }
+    }
+
     public static string Args(ClaudeRequest r)
     {
         var a = new List<string>

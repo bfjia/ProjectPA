@@ -42,7 +42,7 @@ Remote is `git@github.com:bfjia/ProjectPA.git` (HTTPS has no credentials). Git t
 | `src/ProjectPA.UI` | WPF. `PApii.cs` (pane state and every action), `PApiiPane.xaml`, `SettingsWindow`, `PromptsWindow` |
 | `src/ProjectPA.AddIn` | `Connect.cs` (COM entry point, ribbon callbacks, pane hosting), `OutlookHost.cs` (all Outlook object-model code, implements `IHost`), `Ribbon.xml` |
 | `src/ProjectPA.DevHost` | Runs the pane in a plain window on a sample thread; `SampleHost` fakes Outlook |
-| `tests/ProjectPA.Core.Tests` | xunit tests for Core |
+| `tests/ProjectPA.Core.Tests` | xunit tests for Core, and for the pane's logic (`PApiiTests`: fake `IHost`, fake Claude through `PApii.Runner`) |
 | `scripts` | `build.ps1`, `install.ps1`, `uninstall.ps1` |
 
 ## Build, test, install
@@ -66,12 +66,15 @@ Check ribbon ids for duplicates too (`docs/development.md` has the snippet). A m
 
 - **Add-in type.** Plain COM add-in (`IDTExtensibility2`, `IRibbonExtensibility`, `ICustomTaskPaneConsumer`), not VSTO and not Office.js (web add-ins do not load on IMAP accounts). The task pane is a COM-visible WinForms control hosting WPF through `ElementHost`. WebView2 was ruled out for known focus bugs in Office panes.
 - **Claude.** `Claude.Run` starts `claude -p` per request with `--restricted --tools Read --permission-mode dontAsk --strict-mcp-config --disable-slash-commands --system-prompt-file system.md`, streaming `stream-json`. The first turn uses `--session-id`, later turns `--resume`. Requests for data use `--output-format json --json-schema` and read `structured_output`. `ANTHROPIC_API_KEY` is removed from the child environment so the subscription is used. Do not use `--bare`: it ignores the subscription login.
-- **Sessions.** One folder per email under `%LOCALAPPDATA%\ProjectPA\sessions` with `thread.md`, `system.md`, `attachments\`. The thread is sent inline in the first prompt. Sessions older than `KeepDays` (7) are removed at Outlook start; removal also runs `claude purge <folder> --yes`.
+- **Sessions.** One folder per email under `%LOCALAPPDATA%\ProjectPA\sessions` with `thread.md`, `system.md`, `attachments\`. The thread is sent inline in the first prompt. Sessions older than `KeepDays` (7) are removed at Outlook start; removal also runs `claude purge <folder> --yes`. The same clean-up purges transcripts whose session folder was deleted by hand (`Context.Orphans`, which relies on how Claude Code names folders under `~/.claude/projects`).
+- **Quote stripping.** `Context.StripQuotes` cuts a quote only as far back as the thread already has its content (compared through `Context.Squeeze`). Inline answers and quoted messages that never reached the mailbox stay. It errs towards keeping.
 - **Reply format.** Prose first, then a line `---META---`, then one line of JSON (alternative intents, agreed meeting, suggested actions). `Context.Visible` hides it while streaming; `Context.SplitMeta` separates it.
-- **Host boundary.** The pane only talks to `IHost`. Anything touching Outlook goes in `OutlookHost`; add the member to `IHost` and to `SampleHost`.
+- **Host boundary.** The pane only talks to `IHost`. Anything touching Outlook goes in `OutlookHost`; add the member to `IHost`, to `SampleHost` and to `FakeHost` in the tests. `CurrentKey` names the email an action is about; for an inline reply that is the message being answered.
+- **Wrong-email guard.** Reply, Reply All and Insert go through `PApii.Reply`, which refuses when `CurrentKey` no longer matches the loaded thread. Keep any new button that writes into a reply behind it.
 - **Threading.** Every action enters through `PApii.Go`, which runs it on the pane's dispatcher. Ribbon callbacks have no sync context.
-- **Scheduling.** Calendar reading and free-window maths are local (`Scheduling.FreeWindows`, unit tested). Claude gets only free windows, never calendar entries, and every time it returns is re-checked against the calendar.
+- **Scheduling.** Calendar reading and free-window maths are local (`Scheduling.FreeWindows`, unit tested). Claude gets only free windows, never calendar entries. A suggested time must fit a free window (`Scheduling.Fits`); a time the other side proposed beyond the look-ahead triggers a further calendar read before it is called free. The event card shows the sentence the time came from, and re-checks the calendar when its times were edited.
 - **Settings.** `Settings.Current` re-reads `settings.json` when the file timestamp changes. Defaults: Opus, medium effort. Deserialization uses `ObjectCreationHandling.Replace` so list defaults are not duplicated.
+- **Account switch fails closed.** `PApii.Allow` runs before any mail is used: an unreadable `settings.json` (`Settings.Broken`), a switched-off account, or an unknown account while any account is off all refuse. `Settings.Save` does nothing while `Broken` is set; only the Settings window clears it.
 - **Prompts.** Embedded files in `Core/Prompts`; a file of the same name in `%LOCALAPPDATA%\ProjectPA\prompts` overrides. `Prompts.All` lists what the Prompts window edits. The learned writing style is appended to the system prompt in code.
 
 ## Gotchas learned the hard way
@@ -90,6 +93,7 @@ Check ribbon ids for duplicates too (`docs/development.md` has the snippet). A m
 Live Claude calls spend the owner's own five-hour limit, shared with the coding session. Calls slow sharply as the limit is approached.
 
 - Prefer unit tests and DevHost modes that make no Claude call: `--show settings|prompts`, `--dump`, `--do follow`.
+- Logic in `PApii.cs` is testable without Claude: see `PApiiTests.OnPane` (STA thread with a dispatcher, `FakeHost`, a canned answer in `PApii.Runner`). Add a case there for any new rule in an action. Tests share one data folder and do not run in parallel.
 - For live checks: `--model haiku`, one process at a time, one call per flow.
 - DevHost keeps its data in `%TEMP%\ProjectPA-DevHost`. Never pass `--real-data` for a test: an earlier run saved its test model into the owner's real settings.
 - `--dump file` attaches to the running Outlook and writes only counts, sizes and flags. Keep it that way; do not print names, subjects or message text from the owner's mailbox.
@@ -104,7 +108,13 @@ Done and confirmed working by the owner in Outlook: Draft Reply (with instructio
 
 Built in the latest round and not yet confirmed in Outlook: the Time zone menu on the event card (creating an event in another zone goes through `StartTimeZone` / `StartInStartTimeZone`), Saved Sessions menu with delete-all, clean-up at start, large Extract Tasks and Follow Up buttons, the Find Times icon.
 
+Built after a review against the original plan, unit tested but not yet confirmed in Outlook: the wrong-email guard on Reply, Reply All and Insert (and `CurrentKey` staying on the answered message during an inline reply), the stricter Find Times checks, the event card's "From the thread" line and its conflict re-check after edits, the fail-closed account switch (including the `SendUsingAccount` fallback for shared mailboxes and archives), quote stripping that keeps content the thread lacks, orphan transcript clean-up, and the Claude Code version line in the log.
+
+Known and left as they are: "Draft with Instructions" stays armed if another action is clicked before typing; tentative holds never expire; the Model tooltip in `Ribbon.xml` still calls Sonnet the default; old build folders under `app\` are only removed by an install run while Outlook is closed.
+
 Tried and removed (do not rebuild unasked): an Assist button injected into the reading pane header, and a button that opened a session in interactive Claude Code.
+
+Considered and declined by the owner (do not build unasked): unticking single messages or attachments in the context strip, a Redo button, Translate and in-place whole-text Polish, reopening a past session in the pane, extracting attendees for events.
 
 ## Future work
 

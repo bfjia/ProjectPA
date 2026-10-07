@@ -119,6 +119,8 @@ public class PApii : Observable
     CancellationTokenSource cts;
 
     public IHost Host;
+    // how a request reaches Claude; tests put a fake here
+    public Func<ClaudeRequest, Action<string>, CancellationToken, Action<RateInfo>, Task<ClaudeResult>> Runner = Claude.Run;
     public event Action FocusInput;
     public ObservableCollection<Card> Cards { get; } = new();
     public ObservableCollection<string> Items { get; } = new();   // what was read, shown under the subject
@@ -226,7 +228,7 @@ public class PApii : Observable
         Status = $"{s.Model} · {s.Effort} · working";
         string shown = "", usage = "";
 
-        var r = await Claude.Run(new ClaudeRequest
+        var r = await Runner(new ClaudeRequest
         {
             Prompt = fresh ? threadText + "\n\n---\n\n" + prompt : prompt,
             SystemPrompt = fresh ? Prompts.Get("system", ("name", thread.UserName), ("account", thread.Account),
@@ -266,16 +268,18 @@ public class PApii : Observable
 
     void Load()
     {
-        var s = Settings.Current;
         var dir = Context.NewSession();
-        var t = Host.ReadThread(s.IncludeAttachments ? Path.Combine(dir, "attachments") : null);
-        var off = s.DisabledAccounts.Contains(t.Account, StringComparer.OrdinalIgnoreCase);
-        if (off || t.Messages.Count == 0)
+        EmailThread t;
+        try
         {
-            Directory.Delete(dir, true);
-            throw new InvalidOperationException(off
-                ? $"PApii is switched off for {t.Account}. You can change this in Settings."
-                : "There is no message to work from here.");
+            t = Host.ReadThread(Settings.Current.IncludeAttachments ? Path.Combine(dir, "attachments") : null);
+            Allow(t.Account);
+            if (t.Messages.Count == 0) throw new InvalidOperationException("There is no message to work from here.");
+        }
+        catch
+        {
+            Directory.Delete(dir, true);   // nothing of a refused email stays on disk
+            throw;
         }
         Context.Digest(t, dir);
         thread = t;
@@ -296,6 +300,27 @@ public class PApii : Observable
         foreach (var a in atts) Items.Add(a.Note == null ? $"Attachment: {a.Name}" : $"Left out: {a.Name} ({a.Note})");
     }
 
+    // The off switch has to hold. No mail is read when the settings cannot be read, when the account is
+    // switched off, or when some account is off and this mail's account cannot be told.
+    void Allow(string account)
+    {
+        var s = Settings.Current;
+        if (s.Broken != null)
+            throw new InvalidOperationException($"PApii's settings file could not be read ({s.Broken}), so it cannot tell which accounts are switched off. Open Settings on the PApii tab, check the accounts and save.");
+        if (s.DisabledAccounts.Contains(account ?? "", StringComparer.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"PApii is switched off for {account}. You can change this in Settings.");
+        if (s.DisabledAccounts.Count > 0 && !Host.Accounts.Contains(account, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"PApii could not tell which account the mail in \"{account}\" belongs to, and an account is switched off in Settings, so this email was not read.");
+    }
+
+    // The selection may have moved since the draft was written: it must not land in a reply to some other email.
+    void Reply(Card card, bool all)
+    {
+        if (Host.CurrentKey != thread.Key)
+            throw new InvalidOperationException($"This draft was written for \"{thread.Subject}\", which is no longer the email selected here. Select it again, or use Copy.");
+        Host.InsertReply(card.Text, all);
+    }
+
     void Button(Card card, string label, Func<Task> act, bool primary = false) => card.Buttons.Insert(primary ? 0 : card.Buttons.Count,
         new Chip { Label = label, Primary = primary, Run = new Cmd(() => Go(act)) });
     void Button(Card card, string label, Action act, bool primary = false) => Button(card, label, () => { act(); return Task.CompletedTask; }, primary);
@@ -313,11 +338,11 @@ public class PApii : Observable
                 Button(card, "Insert", () => { var (subject, body) = Context.SplitSubject(card.Text); Host.Compose(subject, body); }, !hadSelection);
                 if (hadSelection) Button(card, "Replace selection", () => Host.ReplaceSelection(card.Text), true);
             }
-            else if (thread.Composing) Button(card, "Insert", () => Host.InsertReply(card.Text, false), true);
+            else if (thread.Composing) Button(card, "Insert", () => Reply(card, false), true);
             else
             {
-                Button(card, "Reply All", () => Host.InsertReply(card.Text, true), thread.ManyRecipients);
-                Button(card, "Reply", () => Host.InsertReply(card.Text, false), !thread.ManyRecipients);
+                Button(card, "Reply All", () => Reply(card, true), thread.ManyRecipients);
+                Button(card, "Reply", () => Reply(card, false), !thread.ManyRecipients);
             }
             foreach (var t in Tweaks) Suggest(card, t.Key, () => FollowUp(t.Value));
             foreach (var i in (meta?["intents"] ?? new JArray()).Select(x => (string)x).Where(x => !string.IsNullOrWhiteSpace(x)).Take(3))
@@ -347,7 +372,7 @@ public class PApii : Observable
                 Title = (string)m["title"] ?? thread.Subject, Location = (string)m["location"] ?? "", Start = start,
                 End = Scheduling.Parse((string)m["end"]) is { } end && end > start ? end : start.AddMinutes(30),
             };
-            Suggest(card, "Add to calendar: " + When(start), () => { ShowEvent(e, true); return Task.CompletedTask; });
+            Suggest(card, "Add to calendar: " + When(start), () => { ShowEvent(e, true, (string)m["evidence"]); return Task.CompletedTask; });
         }
     }
 
@@ -355,8 +380,7 @@ public class PApii : Observable
     DraftInfo Writing()
     {
         var d = Host.ReadDraft();
-        if (Settings.Current.DisabledAccounts.Contains(d.Account ?? "", StringComparer.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"PApii is switched off for {d.Account}. You can change this in Settings.");
+        Allow(d.Account);
         thread = new EmailThread
         {
             Key = "writing:" + Guid.NewGuid(), Composing = true, Account = d.Account, UserName = d.UserName,
@@ -449,9 +473,10 @@ public class PApii : Observable
         var from = DateTime.Now.AddHours(2);
         from = from.Date.AddMinutes(Math.Ceiling(from.TimeOfDay.TotalMinutes / 30) * 30);
         var to = DateTime.Today.AddDays(s.HorizonDays + 1);
-        var busy = Host.BusyBlocks(from, to);
+        var busy = Host.BusyBlocks(DateTime.Now, to);
         // Claude gets the free windows only, never what the calendar entries are
-        var free = Scheduling.Describe(Scheduling.FreeWindows(busy, from, to, s));
+        var windows = Scheduling.FreeWindows(busy, from, to, s);
+        var free = Scheduling.Describe(windows);
 
         var r = await Call(Prompts.Get("find-times", Zone(), Now(), ("free", free.Length > 0 ? free : "(none)")), card, Scheduling.TimesSchema);
         if (!r.Ok) return;
@@ -462,7 +487,10 @@ public class PApii : Observable
         List<DateTime> Times(string field) => (j[field] ?? new JArray()).Select(x => Scheduling.Parse((string)x["start"]))
             .OfType<DateTime>().Where(d => d > DateTime.Now).Distinct().OrderBy(d => d).ToList();
         var theirs = Times("their_times");
-        var ours = Times("suggestions").Except(theirs).Where(Free).ToList();   // Claude picks, the calendar decides
+        // a time they proposed beyond the days read above would pass as free unchecked: read that far too
+        if (theirs.Count > 0 && theirs.Last().AddDays(1) > to) busy = Host.BusyBlocks(DateTime.Now, theirs.Last().AddDays(1));
+        // Claude picks, the calendar decides: a suggestion has to fit a free window, which holds it to working hours and buffers too
+        var ours = Times("suggestions").Except(theirs).Where(d => Scheduling.Fits(windows, d, d.AddMinutes(minutes))).ToList();
 
         var text = new StringBuilder($"Meeting: {title} ({minutes} minutes)");
         if (theirs.Count > 0)
@@ -537,11 +565,11 @@ public class PApii : Observable
         {
             Title = (string)j["title"] ?? thread.Subject, Location = (string)j["location"] ?? "", Notes = (string)j["notes"] ?? "", Start = start,
             End = Scheduling.Parse((string)j["end"]) is { } end && end > start ? end : start.AddMinutes(30),
-        }, (bool?)j["confirmed"] == true);
+        }, (bool?)j["confirmed"] == true, (string)j["evidence"]);
     });
 
-    // An event the user can correct before anything is created.
-    void ShowEvent(EventDraft e, bool confirmed)
+    // An event the user can correct before anything is created. evidence: the sentence in the thread the time was taken from.
+    void ShowEvent(EventDraft e, bool confirmed, string evidence)
     {
         var cals = Host.Calendars.ToList();
         var card = new Card { Title = "Add to calendar", Rich = true };
@@ -561,12 +589,19 @@ public class PApii : Observable
         var where = Add("Where", e.Location);
         var cal = Add("Calendar", EventCalendar().Name, cals.Select(c => c.Name).ToList());
 
-        var lines = new List<string> { $"When: {e.Start:dddd d MMMM yyyy}, {e.Start:t} to {e.End:t}" };
-        if (!confirmed) lines.Add("Not confirmed: the thread only proposes this time.");
-        // our own holds for this meeting are not a conflict
-        if (!Scheduling.IsFree(Host.BusyBlocks(e.Start, e.End).Where(b => !b.Hold), e.Start, e.End))
-            lines.Add("Conflict: you already have something at this time.");
-        card.Text = string.Join("\n", lines);
+        // Says on the card when it is (on this computer's clock) and what the calendar has then. True on a conflict.
+        bool Check(DateTime a, DateTime b, string note = "")
+        {
+            // our own holds for this meeting are not a conflict
+            var clash = !Scheduling.IsFree(Host.BusyBlocks(a, b).Where(x => !x.Hold), a, b);
+            card.Text = $"When: {a:dddd d MMMM yyyy}, {a:t} to {b:t}{note}"
+                + (string.IsNullOrWhiteSpace(evidence) ? "" : "\nFrom the thread: " + evidence.Replace("\r", "").Replace("\n", " ").Trim())
+                + (confirmed ? "" : "\nNot confirmed: the thread only proposes this time.")
+                + (clash ? "\nConflict: you already have something at this time." : "");
+            return clash;
+        }
+        Check(e.Start, e.End);
+        var seen = (e.Start, e.End);   // the times the card's text is about
         Cards.Add(card);
 
         Button(card, "Add to calendar", () =>
@@ -585,6 +620,16 @@ public class PApii : Observable
             catch (ArgumentException)
             {
                 throw new InvalidOperationException("That time does not exist in the chosen time zone, because the clocks change then. Pick another time.");
+            }
+            // edited since the card last checked: look at the calendar again before anything is created, and stop once on a conflict
+            if ((mine, mineEnd) != seen)
+            {
+                seen = (mine, mineEnd);
+                if (Check(mine, mineEnd, zoneId == null ? "" : " (your time)"))
+                {
+                    card.Text += "\nClick Add to calendar again to add it anyway.";
+                    return;
+                }
             }
             var id = Host.CreateEvent(new EventDraft
             {

@@ -43,8 +43,12 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     {
         app = (Outlook.Application)application;
         Log.Info($"connected, build {typeof(Connect).Assembly.Location}");
-        // old sessions go each time Outlook starts; off the main thread, so startup is not held up
-        Task.Run(() => Context.PurgeSessions(Settings.Current.KeepDays));
+        // off the main thread, so startup is not held up: note which Claude Code is in use, and drop old sessions
+        Task.Run(() =>
+        {
+            Log.Info($"Claude Code {Claude.Version() ?? "not found or not starting"} at {Claude.Find()}");
+            Context.PurgeSessions(Settings.Current.KeepDays);
+        });
     }
     public void OnDisconnection(ext_DisconnectMode mode, ref Array custom) { }
     public void OnAddInsUpdate(ref Array custom) { }
