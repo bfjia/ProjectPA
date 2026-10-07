@@ -1,0 +1,15 @@
+# build
+bin/
+obj/
+artifacts/
+TestResults/
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# local
+*.log
+.venv/
+__pycache__/
