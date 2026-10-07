@@ -26,6 +26,9 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     Office.ICTPFactory factory;
     readonly List<Office.IRibbonUI> ribbons = new();
     readonly Dictionary<IntPtr, Office.CustomTaskPane> panes = new();
+    readonly Dictionary<IntPtr, HeaderButton> headers = new();
+    Outlook.Explorers explorers;
+    System.Windows.Forms.Timer headerTimer;
 
     static Connect()
     {
@@ -43,11 +46,48 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     {
         app = (Outlook.Application)application;
         Log.Info($"connected, build {typeof(Connect).Assembly.Location}");
+        if (mode != ext_ConnectMode.ext_cm_Startup) Safe(StartHeaders);   // enabled by hand: no startup event follows
     }
     public void OnDisconnection(ext_DisconnectMode mode, ref Array custom) { }
     public void OnAddInsUpdate(ref Array custom) { }
-    public void OnStartupComplete(ref Array custom) { }
-    public void OnBeginShutdown(ref Array custom) { }
+    public void OnStartupComplete(ref Array custom) => Safe(StartHeaders);
+    public void OnBeginShutdown(ref Array custom) => headerTimer?.Stop();
+
+    // The Assist button in each main window's reading pane header. See HeaderButton.
+    void StartHeaders()
+    {
+        if (headerTimer != null) return;
+        explorers = app.Explorers;
+        headerTimer = new System.Windows.Forms.Timer { Interval = 300 };
+        headerTimer.Tick += (_, _) =>
+        {
+            try { PlaceHeaders(); }
+            catch (Exception e)
+            {
+                headerTimer.Stop();   // unsupported territory: one failure and we leave it alone
+                Log.Error("header button, off until Outlook restarts", e);
+            }
+        };
+        headerTimer.Start();
+    }
+
+    void PlaceHeaders()
+    {
+        foreach (var gone in headers.Keys.Where(h => !IsWindow(h)).ToList())
+        {
+            headers[gone].Dispose();
+            headers.Remove(gone);
+        }
+        if (explorers.Count != headers.Count)   // a main window opened
+            foreach (Outlook.Explorer ex in explorers)
+            {
+                ((IOleWindow)ex).GetWindow(out var hwnd);
+                if (headers.ContainsKey(hwnd)) continue;
+                var b = headers[hwnd] = new HeaderButton(hwnd);
+                b.Click += (_, _) => Safe(() => { var a = Pane(ex, hwnd).PApii; a.Go(a.Assist); });
+            }
+        foreach (var b in headers.Values) b.Place(Settings.Current.HeaderButton);
+    }
 
     public void CTPFactoryAvailable(Office.ICTPFactory f) => factory = f;
 

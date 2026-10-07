@@ -157,6 +157,28 @@ public static class Context
 
     static string Bare(string subject) => Regex.Replace(subject ?? "", @"^\s*((re|fw|fwd|aw|sv|tr):\s*)+", "", I).Trim();
 
+    static readonly Regex Label = new(@"^\p{Lu}[\p{L} ,/&'’-]{1,40}:(?=\s|$)");
+    static readonly Regex Starred = new(@"\*\*(.+?)\*\*");
+
+    // How to show one line: a "Label:" opening it, and **marked** text, come out bold.
+    public static IEnumerable<(string text, bool bold)> Runs(string line)
+    {
+        var at = 0;
+        var label = Label.Match(line);
+        if (label.Success)
+        {
+            yield return (label.Value, true);
+            at = label.Length;
+        }
+        foreach (Match m in Starred.Matches(line, at))
+        {
+            if (m.Index > at) yield return (line.Substring(at, m.Index - at), false);
+            yield return (m.Groups[1].Value, true);
+            at = m.Index + m.Length;
+        }
+        if (at < line.Length) yield return (line.Substring(at), false);
+    }
+
     // Splits "body, MetaMark, json". meta is null when absent or unparseable.
     public static (string body, JObject meta) SplitMeta(string text)
     {

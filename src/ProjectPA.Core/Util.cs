@@ -35,6 +35,7 @@ public class Settings
     public string Model = "sonnet", Effort = "medium", Tone = "auto", ClaudePath;
     public string SignOff = "";               // "": closing plus first name. "none": nothing. Else used as written.
     public bool IncludeAttachments = true;
+    public bool HeaderButton = true;          // Assist button in the reading pane header
     public int KeepDays = 14;                 // session folders older than this are deleted
     public List<string> DisabledAccounts = new();
 

@@ -25,6 +25,7 @@ public partial class SettingsWindow : Window
                 Content = a, Margin = new Thickness(0, 2, 0, 2),
                 IsChecked = !s.DisabledAccounts.Contains(a, StringComparer.OrdinalIgnoreCase),
             });
+        headerButton.IsChecked = s.HeaderButton;
         signOff.Text = s.SignOff;
         keepDays.Text = s.KeepDays.ToString();
         claudePath.Text = s.ClaudePath;
@@ -35,6 +36,7 @@ public partial class SettingsWindow : Window
     {
         var s = Settings.Current;
         s.DisabledAccounts = accounts.Children.OfType<CheckBox>().Where(c => c.IsChecked != true).Select(c => (string)c.Content).ToList();
+        s.HeaderButton = headerButton.IsChecked == true;
         s.SignOff = signOff.Text.Trim();
         s.KeepDays = int.TryParse(keepDays.Text, out var d) && d > 0 ? d : s.KeepDays;
         s.ClaudePath = claudePath.Text.Trim().Trim('"') is { Length: > 0 } p ? p : null;

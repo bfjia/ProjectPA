@@ -6,11 +6,12 @@ Nothing happens on its own. PApii only runs when you click one of its buttons, a
 
 ## Where the buttons are
 
-After installation and an Outlook restart you will find PApii in three places:
+After installation and an Outlook restart you will find PApii in four places:
 
 - **The PApii tab** in the ribbon of the main window, of an open message, and of a reply you are writing. It has every control.
 - **A PApii group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply and Summarize, so the common actions need no tab switch.
 - **The right-click menu of a message** in the message list, under PApii.
+- **An Assist button in the reading pane**, in the message header just left of Reply, Reply All and Forward. It does the same as Assist on the ribbon. Outlook has no official way for an add-in to put a button there, so this one depends on how Outlook lays out the header: it hides itself when the pane is too narrow to fit it, and it may stop appearing after an Outlook update that changes the header. You can switch it off in Settings.
 
 Whichever you use, the result appears in the **PApii pane** docked on the right of that window.
 
@@ -46,6 +47,8 @@ The pane remembers the conversation for the selected email, so follow-ups are qu
 
 ## The pane
 
+Each result is a card. Drafts are plain text that you can edit in place. Briefings, summaries and answers are read-only, with their section labels ("What it is:", "Asked of you:" and so on) in bold; you can still select and copy text from them.
+
 At the top is the subject of the email the pane is working on, and a line such as "you@example.com · 6 messages · 2 attachments read". Click the arrow next to it to see exactly which messages were read, which attachments were included, and which were left out and why.
 
 At the bottom is a status line showing the model, the effort level, how long the last request took, and how much of your Claude plan's five-hour usage limit is used. While a request is running a **Stop** button appears there.
@@ -54,8 +57,8 @@ At the bottom is a status line showing the model, the effort level, how long the
 
 | Control | What it does |
 |---|---|
-| **Model** | Which Claude model writes. Haiku is the fastest. Sonnet is the balanced default. Opus and Fable are the most capable, and use more of your plan's usage limit. If your plan does not include a model, the pane shows Claude's error and you can pick another. |
-| **Effort** | How much thinking the model does before answering. Higher effort is slower. Medium suits most email. |
+| **Model** | Which Claude model writes. Haiku is the fastest. Sonnet is the default and suits most email. Opus and Fable are the most capable, and use more of your plan's usage limit. If your plan does not include a model, the pane shows Claude's error and you can pick another. |
+| **Effort** | How much thinking the model does before answering. Medium is the default. High is noticeably slower and uses more of your plan's limit. |
 | **Tone** | Tone of drafted replies. Auto matches the thread. Formal, Friendly and Concise override it. |
 | **Read attachments** | When ticked, attachments are read along with the messages. Untick it for speed, or when you do not want attachments sent. |
 | **Show Pane** | Opens the pane if you closed it. |
@@ -67,6 +70,7 @@ Model, effort, tone and the attachment option are remembered and apply to every 
 ## Settings
 
 - **Accounts.** One tick box per mail account. Untick an account to switch PApii off for it: PApii will refuse to read mail from that account.
+- **Reading pane.** Shows or hides the Assist button in the message header.
 - **Sign-off.** How drafts end. Leave it blank for a closing line followed by your first name (Outlook then adds your signature as usual). Type `none` for no sign-off. Anything else is used exactly as written.
 - **Keep saved sessions for (days).** How long the working copies of threads and attachments are kept. The default is 14 days.
 - **Claude Code executable.** Leave blank to have it found automatically; the window shows which one is in use.

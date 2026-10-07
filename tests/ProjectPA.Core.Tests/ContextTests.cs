@@ -99,6 +99,19 @@ public class ContextTests
     [InlineData("a - b", "a - b")]
     public void Visible_hides_the_marker(string partial, string shown) => Assert.Equal(shown, Context.Visible(partial));
 
+    static string Marked(string line) => string.Concat(Context.Runs(line).Select(r => r.bold ? $"<{r.text}>" : r.text));
+
+    [Theory]
+    [InlineData("What it is: Dana wants a decision.", "<What it is:> Dana wants a decision.")]
+    [InlineData("What they need from you:", "<What they need from you:>")]
+    [InlineData("Deadline: **20 October**, firm", "<Deadline:> <20 October>, firm")]
+    [InlineData("Résumé: en bref", "<Résumé:> en bref")]
+    [InlineData("- Confirm that Thursday 2:30 works", "- Confirm that Thursday 2:30 works")]   // list item, and a time
+    [InlineData("See https://example.com/a for details", "See https://example.com/a for details")]
+    [InlineData("the total is 10,100: more than planned", "the total is 10,100: more than planned")]   // not at line start
+    [InlineData("", "")]
+    public void Runs_bold_labels_and_marked_text(string line, string marked) => Assert.Equal(marked, Marked(line));
+
     [Fact]
     public void ExtractText_reads_office_files()
     {

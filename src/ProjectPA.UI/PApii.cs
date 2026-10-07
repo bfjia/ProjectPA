@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
@@ -39,12 +41,34 @@ public class Chip
 public class Card : Observable
 {
     string title, text = "";
-    bool failed;
+    bool failed, rich;
     public string Title { get => title; set => Set(ref title, value); }
     public string Text { get => text; set => Set(ref text, value); }
     public bool Failed { get => failed; set => Set(ref failed, value); }
+    public bool Rich { get => rich; set => Set(ref rich, value); }   // read-only with bold labels; drafts are plain and editable
     public ObservableCollection<Chip> Buttons { get; } = new();   // act on this card
     public ObservableCollection<Chip> Chips { get; } = new();     // suggested next requests
+}
+
+// Attached to a RichTextBox: shows text with the bold runs Context.Runs finds.
+public static class RichText
+{
+    public static readonly DependencyProperty TextProperty = DependencyProperty.RegisterAttached(
+        "Text", typeof(string), typeof(RichText), new PropertyMetadata(null, (d, e) =>
+        {
+            var p = new Paragraph { Margin = new Thickness(0) };
+            var lines = ((string)e.NewValue ?? "").Replace("\r\n", "\n").Split('\n');
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (i > 0) p.Inlines.Add(new LineBreak());
+                foreach (var (text, bold) in Context.Runs(lines[i]))
+                    p.Inlines.Add(bold ? new Bold(new Run(text)) : new Run(text));
+            }
+            ((RichTextBox)d).Document = new FlowDocument(p) { PagePadding = new Thickness(0) };
+        }));
+
+    public static string GetText(DependencyObject d) => (string)d.GetValue(TextProperty);
+    public static void SetText(DependencyObject d, string value) => d.SetValue(TextProperty, value);
 }
 
 // One per pane: the state the pane binds to, and the actions that fill it.
@@ -150,7 +174,7 @@ public class PApii : Observable
                 Load();
             }
 
-            var card = new Card { Title = title };
+            var card = new Card { Title = title, Rich = !draft };
             Cards.Add(card);
             var s = Settings.Current;
             Status = $"{s.Model} · {s.Effort} · working";
@@ -219,6 +243,7 @@ public class PApii : Observable
             new Chip { Label = label, Primary = primary, Run = new Cmd(() => Go(() => { act(); return Task.CompletedTask; })) });
         void Suggest(string label, Func<Task> act) => card.Chips.Add(new Chip { Label = label, Run = new Cmd(() => Go(act)) });
 
+        card.Rich = !draft;
         if (draft)
         {
             card.Title = "Draft reply";

@@ -84,6 +84,7 @@ By default it works on a built-in sample thread (a three-message budget discussi
 | `--shot out.png` | When everything has finished, save a picture of the pane (or of the `--show` window) and exit. The window stays off screen. Text passed to "insert into reply" is written to `out.png.inserted.txt`. |
 | `--outlook` | Work on the email selected in the running Outlook instead of the sample thread. |
 | `--dump file` | Read the email selected in the running Outlook, write the shape of its thread to the file, and exit. Only counts, sizes, dates and flags are written, never names or text. |
+| `--header file` | Work out where the reading-pane Assist button would go in the running Outlook, write the result to the file, and exit. Nothing is added to Outlook. |
 
 ```powershell
 $exe = 'src\ProjectPA.DevHost\bin\Release\net48\ProjectPA.DevHost.exe'

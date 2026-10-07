@@ -42,6 +42,28 @@ A task pane must be an ActiveX control, so `PaneHost` is a COM-visible Windows F
 
 `Connect` also installs an assembly-resolve handler. Outlook loads the add-in from its install folder, but WPF looks up assemblies by name, which does not search that folder; the handler fills the gap.
 
+## The reading pane button
+
+The Assist button in the message header is the one part of PApii that does not go through an Outlook extension point, because there is none for that area. It relies on an observation: the reading pane header is an ordinary Windows dialog (window class `#32770`) whose children include a toolbar (`ToolbarWindow32`) holding Reply, Reply All and Forward. Copilot's own Summarize button is a child window of the same dialog.
+
+`HeaderButton` (in `src/ProjectPA.AddIn/HeaderButton.cs`) is a small custom-drawn control that PApii creates as another child of that dialog. A timer in `Connect` runs three times a second and calls `HeaderButton.Place` for each main window, which:
+
+1. finds the visible header dialog under the main window and its visible toolbar;
+2. computes a rectangle the height of the toolbar, immediately to its left;
+3. hides the button if that rectangle would overlap any other visible control in the header (which happens when the pane is narrow and the sender line reaches that far), and otherwise moves the button there.
+
+Being a child window, the button moves, clips and hides with the header for free; the timer only has to notice layout changes. When Outlook destroys the header and builds a new one, the button's window is destroyed with it and is recreated in the new header on the next tick.
+
+Because this depends on Outlook internals, it is built to fail quietly:
+
+- The button is never a standard `Button` control. A standard button reports clicks to its parent window, which here is Outlook's dialog and could mistake the message for one of its own commands. `HeaderButton` handles its own mouse input, and sets `WS_EX_NOPARENTNOTIFY` so the dialog is not told about it at all.
+- It cannot take keyboard focus, so clicking it does not pull focus out of the message list.
+- No Outlook window is subclassed, resized or moved. PApii only reads positions and places its own window.
+- If the header or toolbar is not found, the button is simply hidden. If anything throws, the timer stops for the rest of the Outlook session and the error is logged once.
+- It can be switched off in Settings (`HeaderButton` in `settings.json`).
+
+The DevHost option `--header` runs the locating step against the running Outlook from outside and reports where the button would go, without creating it.
+
 ## The host interface
 
 The pane never talks to Outlook directly. `IHost` (in `src/ProjectPA.Core/Email.cs`) is the small set of things PApii needs from a mail client: which item is current, read its thread, insert text into a reply, and list the accounts. `OutlookHost` in the add-in implements it with the Outlook object model, one instance per window. `SampleHost` in the DevHost implements it with a built-in sample thread. This is what lets all of PApii run, with real Claude calls, outside Outlook.
@@ -63,7 +85,7 @@ Prompts are embedded text files in `src/ProjectPA.Core/Prompts`. A file with the
 
 A draft needs to stream to the screen as prose, but the pane also wants structured extras: alternative replies to offer, and whether a meeting was agreed. The prompts therefore ask for the email body first, then a line containing `---META---`, then one line of JSON. `Context.Visible` hides the marker and everything after it while text streams in, including a marker that has only half arrived. `Context.SplitMeta` separates the two parts at the end. If the JSON is missing or malformed the body is still used; the extras are simply absent.
 
-`PApii.Decorate` turns the result into a card: insert and copy buttons, the fixed refinement pills, and pills built from the JSON. A follow-up typed by the user goes through `Prompts/followup.md`, which tells Claude to return a draft with the marker when a draft was asked for and a plain answer otherwise; the presence of the marker decides which kind of card is shown.
+`PApii.Decorate` turns the result into a card: insert and copy buttons, the fixed refinement pills, and pills built from the JSON. Drafts are shown in a plain editable text box. Everything else is shown read-only with bold runs chosen by `Context.Runs`: a short "Label:" at the start of a line, and any text the model wrapped in `**`. This is done on the display side, so it works whatever wording a prompt uses. A follow-up typed by the user goes through `Prompts/followup.md`, which tells Claude to return a draft with the marker when a draft was asked for and a plain answer otherwise; the presence of the marker decides which kind of card is shown.
 
 ## How generation works
 

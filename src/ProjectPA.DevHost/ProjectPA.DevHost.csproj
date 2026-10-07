@@ -6,5 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ProjectPA.UI\ProjectPA.UI.csproj" />
     <ProjectReference Include="..\ProjectPA.AddIn\ProjectPA.AddIn.csproj" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
 </Project>

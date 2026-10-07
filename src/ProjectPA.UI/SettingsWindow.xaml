@@ -25,6 +25,10 @@
     <TextBlock Style="{StaticResource Note}" Text="Email from ticked accounts may be sent to Claude when you use a PApii button. Untick an account to keep its mail out." />
     <StackPanel x:Name="accounts" />
 
+    <TextBlock Style="{StaticResource Head}" Text="Reading pane" />
+    <CheckBox x:Name="headerButton" Content="Show an Assist button next to Reply in the message header" Margin="0,6,0,0" />
+    <TextBlock Style="{StaticResource Note}" Text="Outlook offers no official way to add this button, so it depends on how Outlook lays out the header. If an Outlook update changes that, the button hides itself; the ribbon buttons keep working." />
+
     <TextBlock Style="{StaticResource Head}" Text="Sign-off" />
     <TextBlock Style="{StaticResource Note}" Text="Leave blank for a closing line followed by your first name. Type none for no sign-off. Anything else is used exactly as written." />
     <TextBox x:Name="signOff" AcceptsReturn="True" Height="96" VerticalScrollBarVisibility="Auto" />
