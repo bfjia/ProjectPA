@@ -9,7 +9,7 @@ Nothing happens on its own. PApii only runs when you click one of its buttons, a
 After installation and an Outlook restart you will find PApii in four places:
 
 - **The PApii tab** in the ribbon of the main window, of an open message, and of a reply you are writing. It has every control.
-- **A PApii group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply and Summarize, so the common actions need no tab switch.
+- **A PApii group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply, Summarize, Find Times and Add to Calendar, so the common actions need no tab switch.
 - **The right-click menu of a message** in the message list, under PApii.
 - **An Assist button in the reading pane**, in the message header just left of Reply, Reply All and Forward. It does the same as Assist on the ribbon. Outlook has no official way for an add-in to put a button there, so this one depends on how Outlook lays out the header: it hides itself when the pane is too narrow to fit it, and it may stop appearing after an Outlook update that changes the header. You can switch it off in Settings.
 
@@ -38,6 +38,34 @@ Click **Assist** when you want to know what an email is and what to do about it.
 ### Summarize
 
 Click **Summarize** on a long thread. The summary is laid out as: what the thread is about and where it stands, what is being asked of you, dates and decisions, and open questions.
+
+### Find Times
+
+Use **Find Times** when a thread is trying to arrange a meeting or call.
+
+1. PApii reads the thread to work out what is being arranged, how long it is, and any times the other side has already proposed.
+2. It checks your calendar for the next two weeks (you can change this in Settings) within your working hours.
+3. A card lists the times they proposed, each marked "you are free" or "you have a conflict", followed by tick boxes: their proposals that are free, and up to five further free times. If one of their proposals is free it is ticked for you; otherwise all the suggestions are.
+4. Tick the times you want, then click **Draft reply**. With a single ticked time that they proposed, the draft accepts it. Otherwise the draft offers the ticked times and asks which suits.
+
+**Hold on calendar** adds the ticked times to your calendar as tentative entries titled "HOLD: ...", so nothing else gets booked over them while you wait for an answer. They are removed automatically when you later add the agreed meeting from the same thread with Add to Calendar.
+
+What leaves your computer for this step is only a list of your free time windows. The titles, attendees and contents of your calendar entries are never sent.
+
+### Add to Calendar
+
+Use **Add to Calendar** when a thread has settled on a date and time.
+
+1. PApii finds the meeting in the thread: title, date, start and end, place or video link.
+2. A card shows them as fields you can correct, with a line saying when it is. Two warnings can appear: **Not confirmed** when the thread only proposes the time and nobody has agreed yet, and **Conflict** when your calendar already has something then.
+3. Choose the calendar. It starts on the calendar of the account the email arrived in, and remembers your choice per account.
+4. Click **Add to calendar**. The entry is created and the card confirms it. **Open** shows the entry in Outlook, where you can add a reminder or use Invite Attendees to send it to others.
+
+PApii creates an entry on your own calendar only. It does not send meeting invitations.
+
+When a draft or a briefing notices that both sides have agreed on a time, a pill such as "Add to calendar: Thu 15 Oct, 2:00 PM" appears under it. Clicking it opens the same card, already filled in.
+
+A note for Gmail and other IMAP accounts: classic Outlook does not sync their calendars. Entries for those accounts go to a calendar stored in Outlook on this computer unless you pick another one in the card.
 
 ### Asking questions
 
@@ -72,6 +100,8 @@ Model, effort, tone and the attachment option are remembered and apply to every 
 - **Accounts.** One tick box per mail account. Untick an account to switch PApii off for it: PApii will refuse to read mail from that account.
 - **Reading pane.** Shows or hides the Assist button in the message header.
 - **Sign-off.** How drafts end. Leave it blank for a closing line followed by your first name (Outlook then adds your signature as usual). Type `none` for no sign-off. Anything else is used exactly as written.
+- **Calendars that count as busy.** Every calendar Outlook knows about, across all accounts. Find Times treats you as busy whenever a ticked calendar has an entry that is not marked Free. All are ticked to begin with.
+- **Working hours.** The hours and days Find Times may suggest, how many minutes to keep free on either side of existing meetings, and how many days ahead to look.
 - **Keep saved sessions for (days).** How long the working copies of threads and attachments are kept. The default is 14 days.
 - **Claude Code executable.** Leave blank to have it found automatically; the window shows which one is in use.
 - **Open data folder** opens the folder holding settings, logs and saved sessions.
@@ -89,8 +119,10 @@ Pick a prompt from the list at the top, edit the text, and click **Save**. Your 
 | **Follow-up** | When you type in the box at the bottom of the pane or click a pill such as Shorter. | `{{text}}`, `{{signoff}}`, `{{tone}}` |
 | **Summarize** | When you click Summarize. | none |
 | **Assist** | When you click Assist. | none |
+| **Find Times** | When you click Find Times. The answer is read as data, so keep the list of fields it asks for. | `{{timezone}}`, `{{now}}`, `{{free}}` |
+| **Add to Calendar** | When you click Add to Calendar. The answer is read as data, so keep the list of fields it asks for. | `{{timezone}}`, `{{now}}` |
 
-Placeholders are filled in when the prompt is used: `{{name}}` with your name, `{{account}}` with the mailbox address, `{{today}}` with the date, `{{instructions}}` with what you typed for Draft with Instructions, `{{text}}` with your follow-up message, `{{signoff}}` with the sign-off rule from Settings, and `{{tone}}` with the Tone choice from the ribbon. You can move them or remove them. If you remove `{{signoff}}` or `{{tone}}`, those settings stop having an effect for that prompt.
+Placeholders are filled in when the prompt is used: `{{name}}` with your name, `{{account}}` with the mailbox address, `{{today}}` with the date, `{{instructions}}` with what you typed for Draft with Instructions, `{{text}}` with your follow-up message, `{{signoff}}` with the sign-off rule from Settings, `{{tone}}` with the Tone choice from the ribbon, `{{timezone}}` with your time zone, `{{now}}` with the current date and time, and `{{free}}` with your free time windows. You can move them or remove them. If you remove `{{signoff}}` or `{{tone}}`, those settings stop having an effect for that prompt.
 
 Two things to keep in mind when editing:
 

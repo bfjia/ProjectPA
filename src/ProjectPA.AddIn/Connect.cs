@@ -117,7 +117,7 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
         ((IOleWindow)window).GetWindow(out var hwnd);
         if (c.Tag == "settings")
         {
-            SettingsWindow.Show(new OutlookHost(app, window).Accounts, hwnd);
+            SettingsWindow.Show(new OutlookHost(app, window), hwnd);
             return;
         }
         if (c.Tag == "prompts")
@@ -132,6 +132,8 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
             case "draft": a.Go(() => a.DraftReply()); break;
             case "draftwith": a.AskInstructions(); break;
             case "summarize": a.Go(a.Summarize); break;
+            case "times": a.Go(a.FindTimes); break;
+            case "event": a.Go(a.AddToCalendar); break;
         }
     });
 

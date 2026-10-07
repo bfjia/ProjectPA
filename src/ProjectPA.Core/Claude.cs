@@ -15,7 +15,7 @@ public class ClaudeResult
 {
     public string Text, SessionId, Error;
     public JToken Structured;
-    public long Ms;
+    public long Ms, ApiMs, FirstTokenMs;   // whole run; time inside the API; wait for the first word
     public bool Ok => Error == null;
 }
 
@@ -119,7 +119,9 @@ public static class Claude
             Log.Error("claude run", e);
         }
         finally { res.Ms = sw.ElapsedMilliseconds; }
-        if (!res.Ok) Log.Error($"claude: {res.Error}");
+        // timings only, never content: tells a slow service from a slow start
+        if (res.Ok) Log.Info($"claude ok: {r.Model} {r.Effort}, {res.Ms} ms total, {res.ApiMs} ms in the API, first word after {res.FirstTokenMs} ms");
+        else Log.Error($"claude: {res.Error}");
         return res;
     }
 
@@ -152,6 +154,8 @@ public static class Claude
             case "result":
                 res.SessionId = (string)o["session_id"];
                 res.Structured = o["structured_output"];
+                res.ApiMs = (long?)o["duration_api_ms"] ?? 0;
+                res.FirstTokenMs = (long?)o["ttft_ms"] ?? 0;
                 var text = (string)o["result"];
                 if ((bool?)o["is_error"] == true) res.Error = string.IsNullOrEmpty(text) ? "Claude reported an error." : text;
                 else res.Text = text ?? "";

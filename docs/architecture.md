@@ -87,6 +87,28 @@ A draft needs to stream to the screen as prose, but the pane also wants structur
 
 `PApii.Decorate` turns the result into a card: insert and copy buttons, the fixed refinement pills, and pills built from the JSON. Drafts are shown in a plain editable text box. Everything else is shown read-only with bold runs chosen by `Context.Runs`: a short "Label:" at the start of a line, and any text the model wrapped in `**`. This is done on the display side, so it works whatever wording a prompt uses. A follow-up typed by the user goes through `Prompts/followup.md`, which tells Claude to return a draft with the marker when a draft was asked for and a plain answer otherwise; the presence of the marker decides which kind of card is shown.
 
+## Scheduling
+
+Find Times and Add to Calendar split the work between Claude and local code along one line: Claude reads language, the add-in owns the calendar.
+
+**Find Times** (`PApii.FindTimes`):
+
+1. `OutlookHost.BusyBlocks` reads the calendars ticked in Settings for the look-ahead period. Recurring meetings are expanded. Entries marked Free or Working Elsewhere are ignored. Only start and end times are kept.
+2. `Scheduling.FreeWindows` (pure code, unit tested) turns those into free windows per day: inside working hours, on working days, with the buffer kept around each meeting, and nothing sooner than two hours from now.
+3. One request goes to Claude with the thread and the list of free windows, and a JSON schema for the answer: title, length, the times the other side proposed, three to five times to offer, and a note. Claude is the right tool for this part because the constraints are in prose ("afternoons would be better", "the week after next", a time given in another zone).
+4. The add-in does not trust the answer blindly: every time Claude returns is checked against the busy blocks again with `Scheduling.IsFree`, and suggestions that are not free are dropped. The other side's proposals are shown either way, marked free or conflicting.
+5. The ticked times become instructions for an ordinary Draft Reply request.
+
+What reaches Anthropic for this feature is the thread and the free windows. Calendar subjects, attendees and bodies never leave the machine.
+
+**Add to Calendar** (`PApii.AddToCalendar` and `PApii.ShowEvent`): one request with a schema returns whether a time was found, the title, start, end, location, notes and whether both sides confirmed. The result is shown as editable fields. Nothing is written until the user clicks the button, at which point `OutlookHost.CreateEvent` adds an appointment to the chosen calendar. When a draft or briefing already reported an agreed meeting in its `---META---` line, the same card is opened from that data with no further request.
+
+**Holds.** "Hold on calendar" creates tentative appointments in the category "PApii hold", with a line in the body naming the thread's subject. `RemoveHolds` finds them again by that category and line when the real meeting is added, and deletes them (to Deleted Items). Holds made by PApii are not counted as conflicts for the meeting they were made for.
+
+Requests that return data run at low effort regardless of the ribbon setting, because extraction needs little deliberation and the user is waiting.
+
+Each prompt is told the user's time zone and the current time, and to resolve relative days ("Thursday") from the date of the message that mentions them.
+
 ## How generation works
 
 `Claude.Run` in `src/ProjectPA.Core/Claude.cs` starts one `claude` process per request:

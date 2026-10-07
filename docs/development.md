@@ -74,7 +74,7 @@ By default it works on a built-in sample thread (a three-message budget discussi
 
 | Option | Effect |
 |---|---|
-| `--do assist\|draft\|summarize` | Run that action on start. |
+| `--do assist\|draft\|summarize\|times\|event` | Run that action on start. `times` is Find Times and `event` is Add to Calendar; both use a made-up calendar, and what they "create" is written to `out.png.events.txt` when `--shot` is used. |
 | `--with "text"` | Instructions for `--do draft`. |
 | `--click "Label"` | Then press the button or pill with that label on the last card, for example `Shorter` or `Reply All`. |
 | `--say "text"` | Then type the text into the pane and send it. |
@@ -138,6 +138,8 @@ Start-Process src\ProjectPA.DevHost\bin\Release\net48\ProjectPA.DevHost.exe
 **"Claude Code was not found."** The add-in looks for `claude.exe` in this order: the path in `settings.json` (`ClaudePath`), the `PATH`, `%USERPROFILE%\.local\bin`, and then the newest copy bundled with the Claude Code extension for VS Code. Set `ClaudePath` if yours is elsewhere.
 
 **Claude reports that you are not logged in.** Run `claude` once in a terminal and sign in. The add-in uses the same login. It removes `ANTHROPIC_API_KEY` from the environment of the process it starts, so that a key set on the machine does not divert usage from your subscription to API billing.
+
+**Requests are slow.** Each successful request writes a line to the log with the total time, the time spent inside the API, and the wait for the first word. If the API time accounts for nearly all of it, the delay is on the service side (it tends to grow as the plan's usage limit is approached) and not in the add-in.
 
 **A build fails with a file-in-use error.** The source folder is inside OneDrive, and sync can briefly lock build output. Build again.
 

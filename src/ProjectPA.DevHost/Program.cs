@@ -8,7 +8,7 @@ using ProjectPA.AddIn;
 using ProjectPA.UI;
 
 // Runs the PApii pane in a plain window, on a sample thread.
-//   --do assist|draft|summarize   run an action on start
+//   --do assist|draft|summarize|times|event   run an action on start
 //   --with "text"                 instructions for --do draft
 //   --click "Label"               then press that button or suggestion on the last card
 //   --say "text"                  then type this into the pane and send it
@@ -56,7 +56,7 @@ static class Program
         var win = Arg("--show") switch
         {
             "prompts" => new PromptsWindow(),
-            "settings" => new SettingsWindow(a.Host.Accounts),
+            "settings" => new SettingsWindow(a.Host),
             _ => new Window { Title = "ProjectPA DevHost", Width = 440, Height = 820, Content = pane },
         };
         win.WindowStartupLocation = WindowStartupLocation.Manual;
@@ -75,6 +75,8 @@ static class Program
                 case "assist": await Do(() => a.Go(a.Assist)); break;
                 case "summarize": await Do(() => a.Go(a.Summarize)); break;
                 case "draft": await Do(() => a.Go(() => a.DraftReply(Arg("--with")))); break;
+                case "times": await Do(() => a.Go(a.FindTimes)); break;
+                case "event": await Do(() => a.Go(a.AddToCalendar)); break;
             }
             if (Arg("--click") is { } label)
                 await Do(() => a.Cards.Last().Buttons.Concat(a.Cards.Last().Chips).First(c => c.Label == label).Run.Execute(null));
@@ -90,6 +92,7 @@ static class Program
             var png = new PngBitmapEncoder { Frames = { BitmapFrame.Create(bmp) } };
             using (var f = File.Create(shot)) png.Save(f);
             if (inserted.Count > 0) File.WriteAllText(shot + ".inserted.txt", string.Join("\n=====\n", inserted));
+            if (a.Host is SampleHost { Events.Count: > 0 } sample) File.WriteAllLines(shot + ".events.txt", sample.Events);
             win.Close();
         };
         new Application().Run(win);
@@ -126,6 +129,27 @@ class SampleHost : IHost
     public string CurrentKey => "sample";
     public IEnumerable<string> Accounts => new[] { "sam.jones@example.com" };
     public void InsertReply(string text, bool replyAll) => OnInsert(text, replyAll);
+
+    // a made-up calendar: busy on the Thursday afternoon the thread proposes, and every morning until 10:30
+    public List<string> Events = new();   // what was "created", for checking
+    static DateTime Thursday => DateTime.Today.AddDays(((int)DayOfWeek.Thursday - (int)DateTime.Today.DayOfWeek + 7) % 7);
+    public IEnumerable<CalendarInfo> Calendars => new[]
+    {
+        new CalendarInfo { Id = "work", Name = "Calendar (sam.jones@example.com)" },
+        new CalendarInfo { Id = "home", Name = "Family (sam.jones@example.com)" },
+    };
+    public string DefaultCalendar(string account) => "work";
+    public List<Busy> BusyBlocks(DateTime from, DateTime to) => Enumerable.Range(0, 21)
+        .Select(i => new Busy { Start = DateTime.Today.AddDays(i).AddHours(9), End = DateTime.Today.AddDays(i).AddHours(10.5) })
+        .Append(new Busy { Start = Thursday.AddHours(13.5), End = Thursday.AddHours(15) })
+        .Where(b => b.Start < to && b.End > from).ToList();
+    public string CreateEvent(EventDraft e)
+    {
+        Events.Add($"{(e.Hold ? "hold" : "event")} | {e.Title} | {e.Start:yyyy-MM-dd HH:mm} to {e.End:HH:mm} | {e.Location} | calendar {e.CalendarId}");
+        return "id" + Events.Count;
+    }
+    public int RemoveHolds(string key) => Events.RemoveAll(x => x.StartsWith("hold"));
+    public void OpenEvent(string id) { }
 
     public EmailThread ReadThread(string attachDir)
     {

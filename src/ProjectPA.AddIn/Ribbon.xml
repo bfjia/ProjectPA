@@ -11,6 +11,10 @@
                   screentip="Draft a reply from the whole thread and its attachments" />
           <button id="paQSummarize" tag="summarize" label="Summarize" imageMso="Bullets" onAction="Do"
                   screentip="Summarize the thread" />
+          <button id="paQTimes" tag="times" label="Find Times" imageMso="SchedulingAssistant" onAction="Do"
+                  screentip="Find meeting times that are free in your calendar" />
+          <button id="paQEvent" tag="event" label="Add to Calendar" imageMso="NewAppointment" onAction="Do"
+                  screentip="Add the meeting this thread agrees on to your calendar" />
         </group>
       </tab>
 
@@ -32,6 +36,15 @@
           <button id="paSummarize" tag="summarize" label="Summarize" size="large" imageMso="Bullets" onAction="Do"
                   screentip="Summarize the thread"
                   supertip="What it is about, what is asked of you, dates and decisions, and open questions." />
+        </group>
+
+        <group id="paMeet" label="Meetings">
+          <button id="paTimes" tag="times" label="Find Times" size="large" imageMso="SchedulingAssistant" onAction="Do"
+                  screentip="Find meeting times that are free in your calendar"
+                  supertip="Reads what the thread is trying to arrange, checks the calendars you ticked in Settings, and lists free times. Tick the ones to offer and PApii drafts the reply. Only free and busy times are used, never what your calendar entries say." />
+          <button id="paEvent" tag="event" label="Add to Calendar" size="large" imageMso="NewAppointment" onAction="Do"
+                  screentip="Add the meeting this thread agrees on to your calendar"
+                  supertip="Finds the date, time and place in the thread and shows them for you to check. Nothing is created until you click Add to calendar." />
         </group>
 
         <group id="paModel" label="Model">
@@ -83,6 +96,8 @@
         <button id="paCtxAssist" tag="assist" label="Assist" onAction="Do" />
         <button id="paCtxDraft" tag="draft" label="Draft Reply" onAction="Do" />
         <button id="paCtxSummarize" tag="summarize" label="Summarize" onAction="Do" />
+        <button id="paCtxTimes" tag="times" label="Find Times" onAction="Do" />
+        <button id="paCtxEvent" tag="event" label="Add to Calendar" onAction="Do" />
       </menu>
     </contextMenu>
   </contextMenus>

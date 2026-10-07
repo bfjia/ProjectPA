@@ -99,6 +99,52 @@ public class ContextTests
     [InlineData("a - b", "a - b")]
     public void Visible_hides_the_marker(string partial, string shown) => Assert.Equal(shown, Context.Visible(partial));
 
+    static readonly DateTime Mon = new(2026, 10, 12);   // a Monday
+
+    static Busy Block(int day, double from, double to) => new() { Start = Mon.AddDays(day).AddHours(from), End = Mon.AddDays(day).AddHours(to) };
+
+    [Fact]
+    public void FreeWindows_respect_hours_days_and_buffers()
+    {
+        var s = new Settings { WorkStart = "09:00", WorkEnd = "17:00", BufferMinutes = 15 };
+        var busy = new[] { Block(0, 10, 11), Block(0, 11.25, 12), Block(1, 8, 9.5), Block(1, 16.5, 18), Block(2, 0, 24) };
+
+        // Monday 08:00 to Sunday: Saturday and Sunday are not working days
+        var text = Scheduling.Describe(Scheduling.FreeWindows(busy, Mon.AddHours(8), Mon.AddDays(6), s));
+        var lines = text.Split('\n');
+        Assert.Equal("- Mon 12 Oct 2026: 09:00-09:45, 12:15-17:00", lines[0]);   // the 15-minute gap between meetings vanishes into the buffers
+        Assert.Equal("- Tue 13 Oct 2026: 09:45-16:15", lines[1]);
+        Assert.Equal("- Thu 15 Oct 2026: 09:00-17:00", lines[2]);                 // Wednesday is blocked all day
+        Assert.Equal("- Fri 16 Oct 2026: 09:00-17:00", lines[3]);
+        Assert.Equal(4, lines.Length);
+
+        // starting mid-morning cuts the first window; no buffer leaves the gap
+        s.BufferMinutes = 0;
+        var later = Scheduling.FreeWindows(busy, Mon.AddHours(9.5), Mon.AddHours(23), s);
+        Assert.Equal("- Mon 12 Oct 2026: 09:30-10:00, 11:00-11:15, 12:00-17:00", Scheduling.Describe(later));
+    }
+
+    [Fact]
+    public void IsFree_checks_overlap_with_buffer()
+    {
+        var busy = new[] { Block(0, 10, 11) };
+        Assert.True(Scheduling.IsFree(busy, Mon.AddHours(11), Mon.AddHours(12)));
+        Assert.False(Scheduling.IsFree(busy, Mon.AddHours(11), Mon.AddHours(12), buffer: 15));
+        Assert.False(Scheduling.IsFree(busy, Mon.AddHours(10.5), Mon.AddHours(11.5)));
+        Assert.True(Scheduling.IsFree(busy, Mon.AddHours(8), Mon.AddHours(9.5), buffer: 15));
+    }
+
+    [Fact]
+    public void Parse_reads_the_prompt_format() =>
+        Assert.Equal(new DateTime(2026, 10, 15, 14, 0, 0), Scheduling.Parse("2026-10-15T14:00"));
+
+    [Fact]
+    public void Schemas_are_valid_json()
+    {
+        Assert.Equal("object", (string)Newtonsoft.Json.Linq.JObject.Parse(Scheduling.TimesSchema)["type"]);
+        Assert.Equal("object", (string)Newtonsoft.Json.Linq.JObject.Parse(Scheduling.EventSchema)["type"]);
+    }
+
     static string Marked(string line) => string.Concat(Context.Runs(line).Select(r => r.bold ? $"<{r.text}>" : r.text));
 
     [Theory]

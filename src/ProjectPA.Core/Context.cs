@@ -155,7 +155,8 @@ public static class Context
         return sb.ToString();
     }
 
-    static string Bare(string subject) => Regex.Replace(subject ?? "", @"^\s*((re|fw|fwd|aw|sv|tr):\s*)+", "", I).Trim();
+    // subject without RE:/FW: prefixes
+    public static string Bare(string subject) => Regex.Replace(subject ?? "", @"^\s*((re|fw|fwd|aw|sv|tr):\s*)+", "", I).Trim();
 
     static readonly Regex Label = new(@"^\p{Lu}[\p{L} ,/&'’-]{1,40}:(?=\s|$)");
     static readonly Regex Starred = new(@"\*\*(.+?)\*\*");

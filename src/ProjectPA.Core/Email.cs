@@ -32,4 +32,11 @@ public interface IHost
     EmailThread ReadThread(string attachDir);       // null: list attachments without saving them
     void InsertReply(string text, bool replyAll);   // puts text in a reply window, never sends
     IEnumerable<string> Accounts { get; }
+
+    IEnumerable<CalendarInfo> Calendars { get; }
+    string DefaultCalendar(string account);         // where events from this account's mail go unless the user chose otherwise
+    List<Busy> BusyBlocks(DateTime from, DateTime to);   // from the calendars ticked in Settings; times only
+    string CreateEvent(EventDraft e);               // returns an id for OpenEvent
+    int RemoveHolds(string key);                    // deletes our tentative holds whose notes contain key
+    void OpenEvent(string id);
 }

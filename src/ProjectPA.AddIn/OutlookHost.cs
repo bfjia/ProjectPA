@@ -153,6 +153,114 @@ public class OutlookHost : IHost
         return null;
     }
 
+    // ---- calendar ----
+
+    const string HoldCategory = "PApii hold";
+    List<(CalendarInfo info, Outlook.MAPIFolder folder)> calendars;   // found once per window
+
+    public IEnumerable<CalendarInfo> Calendars => Folders().Select(c => c.info);
+
+    // Every calendar folder in every mailbox, a few levels deep.
+    List<(CalendarInfo info, Outlook.MAPIFolder folder)> Folders()
+    {
+        if (calendars != null) return calendars;
+        calendars = new();
+        foreach (Outlook.Store store in app.Session.Stores)
+            try
+            {
+                if (store.ExchangeStoreType == Outlook.OlExchangeStoreType.olExchangePublicFolder) continue;   // huge and slow
+                string trash = null;
+                try { trash = store.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderDeletedItems).EntryID; } catch { }
+                Walk(store.GetRootFolder(), 0);
+
+                void Walk(Outlook.MAPIFolder f, int depth)
+                {
+                    if (f.EntryID == trash) return;
+                    if (f.DefaultItemType == Outlook.OlItemType.olAppointmentItem)
+                        calendars.Add((new CalendarInfo { Id = store.StoreID + "|" + f.EntryID, Name = $"{f.Name} ({store.DisplayName})" }, f));
+                    if (depth < 3) foreach (Outlook.MAPIFolder sub in f.Folders) Walk(sub, depth + 1);
+                }
+            }
+            catch (Exception e) { Log.Error("calendars", e); }
+        return calendars;
+    }
+
+    Outlook.MAPIFolder Folder(string id) => Folders().FirstOrDefault(c => c.info.Id == id).folder
+        ?? app.Session.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderCalendar);
+
+    public string DefaultCalendar(string account)
+    {
+        Outlook.MAPIFolder f = null;
+        foreach (Outlook.Account a in app.Session.Accounts)
+            try
+            {
+                if (string.Equals(a.SmtpAddress, account, StringComparison.OrdinalIgnoreCase))
+                    f = a.DeliveryStore.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderCalendar);
+            }
+            catch { }   // IMAP mailboxes may have no calendar of their own
+        f ??= app.Session.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderCalendar);
+        return f.StoreID + "|" + f.EntryID;
+    }
+
+    public List<Busy> BusyBlocks(DateTime from, DateTime to)
+    {
+        var want = Settings.Current.AvailabilityCalendars;
+        var busy = new List<Busy>();
+        foreach (var (info, folder) in Folders().Where(c => want.Count == 0 || want.Contains(c.info.Id)))
+            try
+            {
+                var items = folder.Items;
+                items.Sort("[Start]");
+                items.IncludeRecurrences = true;   // expands repeating meetings; needs the sort above and the bounded filter below
+                foreach (object o in items.Restrict($"[Start] < '{to:g}' AND [End] > '{from:g}'"))
+                    if (o is Outlook.AppointmentItem a
+                        && a.BusyStatus is not (Outlook.OlBusyStatus.olFree or Outlook.OlBusyStatus.olWorkingElsewhere))
+                        busy.Add(new Busy { Start = a.Start, End = a.End, Hold = a.Categories == HoldCategory });
+            }
+            catch (Exception e) { Log.Error("busy times", e); }
+        return busy;
+    }
+
+    public string CreateEvent(EventDraft e)
+    {
+        var a = (Outlook.AppointmentItem)(object)Folder(e.CalendarId).Items.Add(Outlook.OlItemType.olAppointmentItem);
+        a.Subject = e.Title;
+        a.Start = e.Start;
+        a.End = e.End;
+        a.Location = e.Location;
+        a.Body = e.Notes;
+        if (e.Hold)
+        {
+            a.BusyStatus = Outlook.OlBusyStatus.olTentative;
+            a.Categories = HoldCategory;
+            a.ReminderSet = false;
+        }
+        a.Save();
+        return a.EntryID;
+    }
+
+    public int RemoveHolds(string key)
+    {
+        var n = 0;
+        foreach (var (_, folder) in Folders())
+            try
+            {
+                var holds = folder.Items.Restrict($"[Categories] = '{HoldCategory}'");
+                for (var i = holds.Count; i >= 1; i--)   // backwards: deleting shifts the rest
+                    if ((object)holds[i] is Outlook.AppointmentItem a && (a.Body ?? "").Contains(key))
+                    {
+                        a.Delete();
+                        n++;
+                    }
+            }
+            catch (Exception e) { Log.Error("remove holds", e); }
+        return n;
+    }
+
+    public void OpenEvent(string id) => ((Outlook.AppointmentItem)(object)app.Session.GetItemFromID(id)).Display();
+
+    // ---- replies ----
+
     public void InsertReply(string text, bool replyAll)
     {
         var cur = Current() ?? throw new InvalidOperationException("Select an email first.");

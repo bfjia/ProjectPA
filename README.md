@@ -1,6 +1,6 @@
 # ProjectPA
 
-ProjectPA builds **PApii**, an add-in for classic Outlook on Windows that acts as a personal assistant for email. It drafts replies from the full email thread and its attachments, summarises threads, and tells you what an email needs from you. Proposing meeting times and adding meetings to the calendar are next. Generation runs through the Claude Code CLI using your own Claude subscription.
+ProjectPA builds **PApii**, an add-in for classic Outlook on Windows that acts as a personal assistant for email. It drafts replies from the full email thread and its attachments, summarises threads, tells you what an email needs from you, proposes meeting times that are free in your calendar, and adds agreed meetings to it. Generation runs through the Claude Code CLI using your own Claude subscription.
 
 Every action is triggered by you. PApii never sends an email, creates a calendar item, or changes anything in Outlook without an explicit click.
 
@@ -14,7 +14,7 @@ In development. This file and the documents in `docs/` are updated as each featu
 |---|---|---|
 | 0 | Repository, solution skeleton, add-in registration, pane, Claude integration | Done; loads in Outlook |
 | 1 | Reply drafting, Assist, Summarize, follow-up questions, ribbon options, settings, prompt editor | Built; in-Outlook checks in progress |
-| 2 | Find meeting times, add to calendar | Planned |
+| 2 | Find meeting times, tentative holds, add to calendar, Assist button in the reading pane | Built; in-Outlook checks in progress |
 | 3 | Compose and polish, tasks and follow-ups, writing-style learning | Planned |
 | 4 | History, hand-off to Claude Code, polish | Planned |
 

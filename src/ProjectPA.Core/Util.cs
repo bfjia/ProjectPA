@@ -39,12 +39,25 @@ public class Settings
     public int KeepDays = 14;                 // session folders older than this are deleted
     public List<string> DisabledAccounts = new();
 
+    // scheduling
+    public string WorkStart = "09:00", WorkEnd = "17:00";
+    public List<string> WorkDays = new() { "Mon", "Tue", "Wed", "Thu", "Fri" };
+    public int BufferMinutes = 15;            // kept free either side of existing meetings
+    public int HorizonDays = 14;              // how far ahead to look for free time
+    public List<string> AvailabilityCalendars = new();          // calendar ids that count as busy; empty = all
+    public Dictionary<string, string> EventCalendars = new();   // account -> calendar last chosen for its events
+
     static readonly string file = Path.Combine(Paths.Data, "settings.json");
     public static Settings Current = Load();
 
     static Settings Load()
     {
-        try { return JsonConvert.DeserializeObject<Settings>(File.ReadAllText(file)) ?? new(); }
+        try
+        {
+            // Replace: by default the saved list would be appended to the defaults above
+            return JsonConvert.DeserializeObject<Settings>(File.ReadAllText(file),
+                new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace }) ?? new();
+        }
         catch { return new(); }
     }
 
@@ -74,6 +87,8 @@ public static class Prompts
         new() { Name = "followup", Title = "Follow-up", About = "Used when you type in the pane or click a pill such as Shorter. Placeholders: {{text}}, {{signoff}}, {{tone}}." },
         new() { Name = "summarize", Title = "Summarize", About = "The request behind Summarize. No placeholders." },
         new() { Name = "assist", Title = "Assist", About = "The request behind Assist. No placeholders." + Meta },
+        new() { Name = "find-times", Title = "Find Times", About = "The request behind Find Times. The answer is read as data, so keep the list of fields it asks for. Placeholders: {{timezone}}, {{now}}, {{free}} (your free windows)." },
+        new() { Name = "event", Title = "Add to Calendar", About = "The request behind Add to Calendar. The answer is read as data, so keep the list of fields it asks for. Placeholders: {{timezone}}, {{now}}." },
     };
 
     static string CustomFile(string name) => Path.Combine(Paths.Data, "prompts", name + ".md");

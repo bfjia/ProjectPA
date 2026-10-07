@@ -93,7 +93,7 @@
     </Border>
 
     <TextBlock Grid.Row="1" Margin="24" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Foreground="#6B6B6B"
-               Text="Select an email, then choose Assist, Draft Reply or Summarize on the PApii tab.">
+               Text="Select an email, then choose an action on the PApii tab: Assist, Draft Reply, Summarize, Find Times or Add to Calendar.">
       <TextBlock.Style>
         <Style TargetType="TextBlock">
           <Setter Property="Visibility" Value="Collapsed" />
@@ -119,6 +119,38 @@
                 <RichTextBox x:Name="rich" ui:RichText.Text="{Binding Text}" IsReadOnly="True" Visibility="Collapsed"
                              BorderThickness="0" Background="Transparent" Padding="0" Margin="-5,4,0,0" />
                 <StackPanel IsEnabled="{Binding DataContext.Idle, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                  <!-- editable lines, e.g. an event's title, date and times -->
+                  <ItemsControl ItemsSource="{Binding Fields}" Margin="0,6,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,0,0,4">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <TextBlock Text="{Binding Label}" Foreground="#6B6B6B" VerticalAlignment="Center" />
+                          <TextBox x:Name="box" Grid.Column="1" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                   Padding="4,2" BorderBrush="#C8C8C8" />
+                          <ComboBox x:Name="pick" Grid.Column="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding Value}"
+                                    Visibility="Collapsed" />
+                        </Grid>
+                        <DataTemplate.Triggers>
+                          <DataTrigger Binding="{Binding HasChoices}" Value="True">
+                            <Setter TargetName="box" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="pick" Property="Visibility" Value="Visible" />
+                          </DataTrigger>
+                        </DataTemplate.Triggers>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <!-- tick boxes, e.g. meeting times to offer -->
+                  <ItemsControl ItemsSource="{Binding Options}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <CheckBox Content="{Binding Label}" IsChecked="{Binding On}" Margin="0,4,0,0" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                   <ItemsControl ItemsSource="{Binding Buttons}" ItemsPanel="{StaticResource Wrap}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
