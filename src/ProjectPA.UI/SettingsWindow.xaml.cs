@@ -36,7 +36,6 @@ public partial class SettingsWindow : Window
         foreach (var c in host.Calendars) Tick(calendars, c.Name, s.AvailabilityCalendars.Count == 0 || s.AvailabilityCalendars.Contains(c.Id), c.Id);
         foreach (var d in Days) Tick(workDays, d, s.WorkDays.Contains(d));
 
-        headerButton.IsChecked = s.HeaderButton;
         signOff.Text = s.SignOff;
         workStart.Text = s.WorkStart;
         workEnd.Text = s.WorkEnd;
@@ -117,7 +116,6 @@ public partial class SettingsWindow : Window
         s.BufferMinutes = Number(buffer, s.BufferMinutes, 0, 120);
         s.HorizonDays = Number(horizon, s.HorizonDays, 1, 90);
         s.KeepDays = Number(keepDays, s.KeepDays, 1, 3650);
-        s.HeaderButton = headerButton.IsChecked == true;
         s.SignOff = signOff.Text.Trim();
         s.ClaudePath = claudePath.Text.Trim().Trim('"') is { Length: > 0 } p ? p : null;
         s.Save();

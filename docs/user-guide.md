@@ -6,12 +6,11 @@ Nothing happens on its own. PApii only runs when you click one of its buttons, a
 
 ## Where the buttons are
 
-After installation and an Outlook restart you will find PApii in four places:
+After installation and an Outlook restart you will find PApii in three places:
 
 - **The PApii tab** in the ribbon of the main window, of an open message, and of a reply you are writing. It has every control.
 - **A PApii group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply, Summarize, Find Times and Add to Calendar, so the common actions need no tab switch. Write from Brief, Polish, Extract Tasks and Follow Up are on the PApii tab.
 - **The right-click menu of a message** in the message list, under PApii.
-- **An Assist button in the reading pane**, in the message header just left of Reply, Reply All and Forward. It does the same as Assist on the ribbon. Outlook has no official way for an add-in to put a button there, so this one depends on how Outlook lays out the header: it hides itself when the pane is too narrow to fit it, and it may stop appearing after an Outlook update that changes the header. You can switch it off in Settings.
 
 Whichever you use, the result appears in the **PApii pane** docked on the right of that window.
 
@@ -58,10 +57,11 @@ Use **Add to Calendar** when a thread has settled on a date and time.
 
 1. PApii finds the meeting in the thread: title, date, start and end, place or video link.
 2. A card shows them as fields you can correct, with a line saying when it is. Two warnings can appear: **Not confirmed** when the thread only proposes the time and nobody has agreed yet, and **Conflict** when your calendar already has something then.
-3. Choose the calendar. It starts on the calendar of the account the email arrived in, and remembers your choice per account.
-4. Click **Add to calendar**. The entry is created and the card confirms it. **Open** shows the entry in Outlook, where you can add a reminder or use Invite Attendees to send it to others.
+3. Check the **Time zone**. It says which zone the date and times in the card are in, and starts on your computer's own zone, because PApii converts times from the thread to your local time. If you would rather enter the time as the other side stated it ("3 pm Eastern"), type that time and pick their zone from the menu. Outlook stores the zone with the entry and shows it at the right moment in your calendar; the confirmation also tells you what that is in your own time.
+4. Choose the calendar. It starts on the calendar of the account the email arrived in, and remembers your choice per account.
+5. Click **Add to calendar**. The entry is created and the card confirms it. **Open** shows the entry in Outlook, where you can add a reminder or use Invite Attendees to send it to others.
 
-PApii creates an entry on your own calendar only. It does not send meeting invitations.
+PApii creates an entry on your own calendar only. It does not send meeting invitations; an option for that is on the list of future work.
 
 When a draft or a briefing notices that both sides have agreed on a time, a pill such as "Add to calendar: Thu 15 Oct, 2:00 PM" appears under it. Clicking it opens the same card, already filled in.
 
@@ -93,15 +93,15 @@ The same pills as for replies appear underneath, and you can keep refining by ty
 
 On Exchange and Outlook.com mailboxes the email itself is flagged with the reminder. Gmail and other IMAP mailboxes cannot hold a dated flag, so a task named "Follow up: ..." is created with the same reminder.
 
-### Open in Claude Code, and History
+### Saved Sessions
 
-The pane is deliberately limited: it can read the thread and write text, and nothing else. For a bigger job on the same email, **Open in Claude Code** opens a terminal in the folder that holds this email's thread and attachments and continues the conversation from the pane in full Claude Code. There it can use all its tools, and it asks your permission before running commands or changing files, as Claude Code always does.
+Each email you use PApii on gets a saved session: a folder on your computer with a copy of the thread as text and the attachments that were read. It is what lets you ask follow-up questions without the thread being read again.
 
-This is the way to handle an attached form for now: use any PApii action on the email so its attachments are saved, click Open in Claude Code, and ask it to fill in the form. The saved attachments are in the `attachments` folder it starts in.
+- **They clean themselves up.** Each time Outlook starts, sessions older than a week are deleted. You can change the number of days in Settings.
+- **Saved Sessions** on the PApii tab lists the most recent ones by subject. Picking one opens its folder, so you can see exactly what was saved and sent for that email. To remove a single session, delete its folder there.
+- **Delete All Saved Sessions**, the last entry in that menu, removes every one after asking you to confirm.
 
-**History** lists the emails you most recently used PApii on. Picking one opens that conversation in Claude Code in the same way. Sessions older than the retention period in Settings are no longer listed.
-
-Both need Windows Terminal or, failing that, use a plain command window.
+Deleting a session also removes the copy of the conversation that Claude Code keeps on your computer. Your emails in Outlook are never affected.
 
 ### Asking questions
 
@@ -121,13 +121,12 @@ At the bottom is a status line showing the model, the effort level, how long the
 
 | Control | What it does |
 |---|---|
-| **Model** | Which Claude model writes. Haiku is the fastest. Sonnet is the default and suits most email. Opus and Fable are the most capable, and use more of your plan's usage limit. If your plan does not include a model, the pane shows Claude's error and you can pick another. |
+| **Model** | Which Claude model writes. Opus is the default. Haiku is the fastest and Sonnet sits between the two. Opus and Fable are the most capable, and use more of your plan's usage limit. If your plan does not include a model, the pane shows Claude's error and you can pick another. |
 | **Effort** | How much thinking the model does before answering. Medium is the default. High is noticeably slower and uses more of your plan's limit. |
 | **Tone** | Tone of drafted replies. Auto matches the thread. Formal, Friendly and Concise override it. |
 | **Read attachments** | When ticked, attachments are read along with the messages. Untick it for speed, or when you do not want attachments sent. |
 | **Show Pane** | Opens the pane if you closed it. |
-| **Open in Claude Code** | Continues this email's conversation in full Claude Code, in a terminal. |
-| **History** | Recent emails you used PApii on; pick one to open it in Claude Code. |
+| **Saved Sessions** | The copies PApii keeps of threads you used it on. Pick one to open its folder, or delete them all. |
 | **Prompts** | Opens the prompt editor described below, where you change the instructions PApii gives Claude. |
 | **Settings** | Opens the settings window described below. |
 
@@ -136,12 +135,11 @@ Model, effort, tone and the attachment option are remembered and apply to every 
 ## Settings
 
 - **Accounts.** One tick box per mail account. Untick an account to switch PApii off for it: PApii will refuse to read mail from that account.
-- **Reading pane.** Shows or hides the Assist button in the message header.
 - **Sign-off.** How drafts end. Leave it blank for a closing line followed by your first name (Outlook then adds your signature as usual). Type `none` for no sign-off. Anything else is used exactly as written.
 - **Writing style.** One line per account with three buttons. **Learn** reads about 30 of your recent sent emails from that account (your own words only, with quoted text removed), sends them to Claude once, and saves a short description of how you write: your greetings and sign-offs, how formal you are, your habits. From then on every draft for that account is told to follow it. **Edit** opens the description in Notepad so you can correct it. **Forget** deletes it. Learning is per account, so a work mailbox and a personal one can sound different.
 - **Calendars that count as busy.** Every calendar Outlook knows about, across all accounts. Find Times treats you as busy whenever a ticked calendar has an entry that is not marked Free. All are ticked to begin with.
 - **Working hours.** The hours and days Find Times may suggest, how many minutes to keep free on either side of existing meetings, and how many days ahead to look.
-- **Keep saved sessions for (days).** How long the working copies of threads and attachments are kept. The default is 14 days.
+- **Keep saved sessions for (days).** How long the working copies of threads and attachments are kept. The default is 7 days. Older ones are removed each time Outlook starts.
 - **Claude Code executable.** Leave blank to have it found automatically; the window shows which one is in use.
 - **Open data folder** opens the folder holding settings, logs and saved sessions.
 
@@ -195,7 +193,7 @@ A working copy of each thread, with its attachments, is kept on your computer un
 
 ## Good to know
 
-- **Speed.** A draft typically takes five to ten seconds with Sonnet. Haiku and low effort are faster. Threads with PDF attachments take longer, because Claude opens them.
+- **Speed.** How long a request takes depends on the model, the effort level and how busy the service is. Haiku and low effort are the fastest combination. Threads with PDF attachments take longer, because Claude opens them. Requests also slow down noticeably as you approach your plan's usage limit.
 - **Usage limits.** PApii uses your Claude subscription, which has usage limits. The status line shows how much of the five-hour limit is used. When the limit is reached the pane shows the message Claude Code returns.
 - **Gaps in drafts.** PApii is told not to invent facts. When a reply needs something it cannot know, it leaves a marked gap such as `[your phone number]` for you to fill in.
 - **Instructions inside emails.** PApii treats email content as material to work from, not as instructions, and it has no ability to send mail, browse the web or run programs. Even so, read a draft before sending it, as you would with any draft someone else wrote for you.

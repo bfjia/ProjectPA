@@ -17,7 +17,7 @@ using ProjectPA.UI;
 //   --attach file                 add a file to the sample thread as an attachment
 //   --outlook                     work on the email selected in the running Outlook instead of the sample
 //   --dump file                   write statistics (no content) of the thread selected in Outlook to file and exit
-//   --header file                 write where the reading-pane Assist button would go in the running Outlook, and exit
+//   --real-data                   use the real settings, prompts and sessions instead of a scratch folder in %TEMP%
 //   --show prompts|settings       show that window instead of the pane
 //   --model haiku                 model for this run (not saved)
 //   --shot out.png                save a picture of the pane (or the --show window) when done, then exit; stays off screen
@@ -32,17 +32,14 @@ static class Program
             return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         }
 
+        // Its own data folder, before anything reads settings: a test run must never change the
+        // real settings, prompts or sessions (it once saved its test model into them).
+        if (!args.Contains("--real-data"))
+            Environment.SetEnvironmentVariable("PROJECTPA_DATA", Path.Combine(Path.GetTempPath(), "ProjectPA-DevHost"));
+
         if (Arg("--dump") is { } dump)
         {
             File.WriteAllText(dump, Dump(OutlookHost.Attach()));
-            return;
-        }
-        if (Arg("--header") is { } header)
-        {
-            // where the reading-pane Assist button would go in the running Outlook, without putting it there
-            var main = System.Diagnostics.Process.GetProcessesByName("OUTLOOK").FirstOrDefault()?.MainWindowHandle ?? IntPtr.Zero;
-            var (dlg, at) = HeaderButton.Locate(main, 90);
-            File.WriteAllText(header, dlg == IntPtr.Zero ? "no clean spot (or no message showing)" : $"header dialog {dlg}, button at {at}");
             return;
         }
         if (Arg("--model") is { } m) Settings.Current.Model = m;
@@ -167,7 +164,7 @@ class SampleHost : IHost
         .Where(b => b.Start < to && b.End > from).ToList();
     public string CreateEvent(EventDraft e)
     {
-        Events.Add($"{(e.Hold ? "hold" : "event")} | {e.Title} | {e.Start:yyyy-MM-dd HH:mm} to {e.End:HH:mm} | {e.Location} | calendar {e.CalendarId}");
+        Events.Add($"{(e.Hold ? "hold" : "event")} | {e.Title} | {e.Start:yyyy-MM-dd HH:mm} to {e.End:HH:mm} | zone {e.TimeZoneId ?? "local"} | {e.Location} | calendar {e.CalendarId}");
         return "id" + Events.Count;
     }
     public int RemoveHolds(string key) => Events.RemoveAll(x => x.StartsWith("hold"));

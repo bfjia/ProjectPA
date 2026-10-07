@@ -204,7 +204,8 @@ public class PApii : Observable
             if (load)
             {
                 var key = Host.CurrentKey ?? throw new InvalidOperationException("Select an email first.");
-                if (key != thread?.Key || standalone)
+                // also when its saved session was deleted meanwhile
+                if (key != thread?.Key || standalone || !Directory.Exists(workDir))
                 {
                     Status = "Reading the thread";
                     await Paint();   // the read blocks
@@ -222,8 +223,7 @@ public class PApii : Observable
     async Task<ClaudeResult> Call(string prompt, Card card, string schema = null)
     {
         var s = Settings.Current;
-        var effort = schema != null ? "low" : s.Effort;
-        Status = $"{s.Model} · {effort} · working";
+        Status = $"{s.Model} · {s.Effort} · working";
         string shown = "", usage = "";
 
         var r = await Claude.Run(new ClaudeRequest
@@ -231,20 +231,15 @@ public class PApii : Observable
             Prompt = fresh ? threadText + "\n\n---\n\n" + prompt : prompt,
             SystemPrompt = fresh ? Prompts.Get("system", ("name", thread.UserName), ("account", thread.Account),
                 ("today", DateTime.Now.ToString("dddd d MMMM yyyy"))) + Prompts.StyleNote(thread.Account) : null,
-            // pulling out dates and times needs little thought; low effort keeps it quick
-            WorkDir = workDir, SessionId = sessionId, Resume = !fresh, Model = s.Model, Effort = effort, JsonSchema = schema,
+            WorkDir = workDir, SessionId = sessionId, Resume = !fresh, Model = s.Model, Effort = s.Effort, JsonSchema = schema,
         },
         schema != null ? null : t => ui.InvokeAsync(() => card.Text = Context.Visible(shown = t == null ? "" : shown + t)),
         cts.Token,
         rate => usage = $" · 5-hour limit {rate.FiveHour:P0} used");
 
-        Status = $"{s.Model} · {effort} · {r.Ms / 1000.0:0.0} s{usage}";
+        Status = $"{s.Model} · {s.Effort} · {r.Ms / 1000.0:0.0} s{usage}";
         if (r.Ok && schema != null && r.Structured == null) r.Error = "Claude did not return the details in the expected form. Try again.";
-        if (r.Ok)
-        {
-            if (fresh) File.WriteAllText(Path.Combine(workDir, "session.id"), sessionId);   // now there is a conversation to hand over
-            fresh = false;
-        }
+        if (r.Ok) fresh = false;
         else
         {
             if (fresh) sessionId = Guid.NewGuid().ToString();   // the failed run may have claimed the id
@@ -435,14 +430,6 @@ public class PApii : Observable
         }, true);
     });
 
-    // Continues this email's conversation in full Claude Code, in a terminal.
-    public Task OpenInClaude()
-    {
-        if (workDir == null) throw new InvalidOperationException("There is nothing to open yet. Use a PApii action on an email first.");
-        Claude.OpenInTerminal(workDir);
-        return Task.CompletedTask;
-    }
-
     // A reminder on the selected email. No request to Claude.
     public Task FollowUpIn(int days) => Act(() =>
     {
@@ -568,6 +555,9 @@ public class PApii : Observable
         var date = Add("Date", e.Start.ToString("yyyy-MM-dd"));
         var start = Add("Start", e.Start.ToString("t"));
         var end = Add("End", e.End.ToString("t"));
+        // the zone the times above are in; starts on this computer's
+        var zones = TimeZoneInfo.GetSystemTimeZones();
+        var zone = Add("Time zone", (zones.FirstOrDefault(z => z.Id == TimeZoneInfo.Local.Id) ?? zones[0]).DisplayName, zones.Select(z => z.DisplayName).ToList());
         var where = Add("Where", e.Location);
         var cal = Add("Calendar", EventCalendar().Name, cals.Select(c => c.Name).ToList());
 
@@ -584,14 +574,31 @@ public class PApii : Observable
             if (!DateTime.TryParse($"{date.Value} {start.Value}", out var a) || !DateTime.TryParse($"{date.Value} {end.Value}", out var b) || b <= a)
                 throw new InvalidOperationException("Check the date and times. Use a date like 2026-10-15 and times like 14:00 or 2:00 PM.");
             var chosen = cals.First(c => c.Name == cal.Value);
-            var id = Host.CreateEvent(new EventDraft { Title = title.Value, Start = a, End = b, Location = where.Value, Notes = e.Notes, CalendarId = chosen.Id });
+            var z = zones.First(x => x.DisplayName == zone.Value);
+            var zoneId = z.Id == TimeZoneInfo.Local.Id ? null : z.Id;
+            DateTime mine, mineEnd;   // the same moments on this computer's clock
+            try
+            {
+                mine = Scheduling.ToLocal(a, zoneId);
+                mineEnd = Scheduling.ToLocal(b, zoneId);
+            }
+            catch (ArgumentException)
+            {
+                throw new InvalidOperationException("That time does not exist in the chosen time zone, because the clocks change then. Pick another time.");
+            }
+            var id = Host.CreateEvent(new EventDraft
+            {
+                Title = title.Value, Start = a, End = b, TimeZoneId = zoneId, Location = where.Value, Notes = e.Notes, CalendarId = chosen.Id,
+            });
             var held = Host.RemoveHolds(HoldKey());
             Settings.Current.EventCalendars[thread.Account ?? ""] = chosen.Id;   // same calendar next time
             Settings.Current.Save();
 
             card.Fields.Clear();
             card.Buttons.Clear();
-            card.Text = $"Added: {title.Value}\nWhen: {a:dddd d MMMM yyyy}, {a:t} to {b:t}\nCalendar: {chosen.Name}"
+            card.Text = $"Added: {title.Value}\nWhen: {a:dddd d MMMM yyyy}, {a:t} to {b:t}"
+                + (zoneId == null ? "" : $" ({z.DisplayName})\nYour time: {mine:dddd d MMMM yyyy}, {mine:t} to {mineEnd:t}")
+                + $"\nCalendar: {chosen.Name}"
                 + (held > 0 ? $"\nRemoved: {Plural(held, "tentative hold")} for this meeting." : "");
             Button(card, "Open", () => Host.OpenEvent(id));
         }, true);

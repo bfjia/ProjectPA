@@ -39,11 +39,29 @@ public static class Context
         return list;
     }
 
-    public static void PurgeSessions(int days)
+    public static int PurgeSessions(int days) =>
+        RemoveSessions(Directory.GetDirectories(Paths.Sessions).Where(d => Directory.GetCreationTime(d) < DateTime.Now.AddDays(-days)));
+
+    public static int ClearSessions() => RemoveSessions(Directory.GetDirectories(Paths.Sessions));
+
+    // Deletes session folders. forget: also have Claude Code drop its own transcript of each conversation.
+    public static int RemoveSessions(IEnumerable<string> dirs, bool forget = true)
     {
-        foreach (var d in Directory.GetDirectories(Paths.Sessions))
-            try { if (Directory.GetCreationTime(d) < DateTime.Now.AddDays(-days)) Directory.Delete(d, true); }
-            catch (Exception e) { Log.Error("purge " + d, e); }
+        var exe = forget ? Claude.Find() : null;
+        var n = 0;
+        foreach (var d in dirs.ToList())
+            try
+            {
+                if (exe != null)
+                    using (var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, $"purge {Claude.Quote(d)} --yes")
+                        { UseShellExecute = false, CreateNoWindow = true }))
+                        p.WaitForExit(20000);
+                Directory.Delete(d, true);
+                n++;
+            }
+            catch (Exception e) { Log.Error("remove session " + d, e); }
+        if (n > 0) Log.Info($"removed {n} saved session(s)");
+        return n;
     }
 
     // Cuts quoted history off a reply. Only for messages whose predecessors are in the thread.

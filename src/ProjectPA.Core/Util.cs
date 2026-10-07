@@ -32,11 +32,10 @@ public static class Log
 
 public class Settings
 {
-    public string Model = "sonnet", Effort = "medium", Tone = "auto", ClaudePath;
+    public string Model = "opus", Effort = "medium", Tone = "auto", ClaudePath;
     public string SignOff = "";               // "": closing plus first name. "none": nothing. Else used as written.
     public bool IncludeAttachments = true;
-    public bool HeaderButton = true;          // Assist button in the reading pane header
-    public int KeepDays = 14;                 // session folders older than this are deleted
+    public int KeepDays = 7;                  // sessions older than this are removed when Outlook starts
     public List<string> DisabledAccounts = new();
 
     // scheduling
@@ -48,7 +47,23 @@ public class Settings
     public Dictionary<string, string> EventCalendars = new();   // account -> calendar last chosen for its events
 
     static readonly string file = Path.Combine(Paths.Data, "settings.json");
-    public static Settings Current = Load();
+    static Settings current;
+    static DateTime stamp;
+
+    // read again whenever the file changed on disk, so an edit made elsewhere is not overwritten by a stale copy
+    public static Settings Current
+    {
+        get
+        {
+            var t = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : default;
+            if (current == null || t != stamp)
+            {
+                current = Load();
+                stamp = t;
+            }
+            return current;
+        }
+    }
 
     static Settings Load()
     {
@@ -65,6 +80,7 @@ public class Settings
     {
         Directory.CreateDirectory(Paths.Data);
         File.WriteAllText(file, JsonConvert.SerializeObject(this, Formatting.Indented));
+        stamp = File.GetLastWriteTimeUtc(file);
     }
 }
 

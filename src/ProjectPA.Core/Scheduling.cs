@@ -17,7 +17,8 @@ public class CalendarInfo
 public class EventDraft
 {
     public string Title = "", Location = "", Notes = "", CalendarId;
-    public DateTime Start, End;
+    public DateTime Start, End;   // wall-clock time in TimeZoneId, or local time when that is null
+    public string TimeZoneId;
     public bool Hold;   // tentative placeholder for a time on offer
 }
 
@@ -35,6 +36,10 @@ public static class Scheduling
     // the format the prompts ask for
     public static DateTime? Parse(string iso) =>
         DateTime.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+
+    // A wall-clock time in another zone, as this computer's local time. Throws for a time the zone skips (clocks going forward).
+    public static DateTime ToLocal(DateTime time, string zoneId) => zoneId == null ? time
+        : TimeZoneInfo.ConvertTime(DateTime.SpecifyKind(time, DateTimeKind.Unspecified), TimeZoneInfo.FindSystemTimeZoneById(zoneId), TimeZoneInfo.Local);
 
     public static bool IsFree(IEnumerable<Busy> busy, DateTime start, DateTime end, int buffer = 0) =>
         !busy.Any(b => b.Start < end.AddMinutes(buffer) && b.End > start.AddMinutes(-buffer));

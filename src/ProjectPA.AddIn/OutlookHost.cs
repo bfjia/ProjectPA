@@ -225,8 +225,28 @@ public class OutlookHost : IHost
     {
         var a = (Outlook.AppointmentItem)(object)Folder(e.CalendarId).Items.Add(Outlook.OlItemType.olAppointmentItem);
         a.Subject = e.Title;
-        a.Start = e.Start;
-        a.End = e.End;
+        if (e.TimeZoneId == null)
+        {
+            a.Start = e.Start;
+            a.End = e.End;
+        }
+        else
+            try
+            {
+                // the times are that zone's wall clock; Outlook stores the zone with the entry
+                var zone = app.TimeZones[e.TimeZoneId];
+                a.StartTimeZone = zone;
+                a.EndTimeZone = zone;
+                a.StartInStartTimeZone = e.Start;
+                a.EndInEndTimeZone = e.End;
+            }
+            catch (Exception x)
+            {
+                // Outlook does not know the zone by that name: convert here instead
+                Log.Error("time zone " + e.TimeZoneId, x);
+                a.Start = Scheduling.ToLocal(e.Start, e.TimeZoneId);
+                a.End = Scheduling.ToLocal(e.End, e.TimeZoneId);
+            }
         a.Location = e.Location;
         a.Body = e.Notes;
         if (e.Hold)

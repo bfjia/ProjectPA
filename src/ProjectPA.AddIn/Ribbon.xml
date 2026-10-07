@@ -11,7 +11,7 @@
                   screentip="Draft a reply from the whole thread and its attachments" />
           <button id="paQSummarize" tag="summarize" label="Summarize" imageMso="Bullets" onAction="Do"
                   screentip="Summarize the thread" />
-          <button id="paQTimes" tag="times" label="Find Times" imageMso="SchedulingAssistant" onAction="Do"
+          <button id="paQTimes" tag="times" label="Find Times" imageMso="RecurrenceEdit" onAction="Do"
                   screentip="Find meeting times that are free in your calendar" />
           <button id="paQEvent" tag="event" label="Add to Calendar" imageMso="NewAppointment" onAction="Do"
                   screentip="Add the meeting this thread agrees on to your calendar" />
@@ -36,10 +36,10 @@
           <button id="paSummarize" tag="summarize" label="Summarize" size="large" imageMso="Bullets" onAction="Do"
                   screentip="Summarize the thread"
                   supertip="What it is about, what is asked of you, dates and decisions, and open questions." />
-          <button id="paTasks" tag="tasks" label="Extract Tasks" imageMso="NewTask" onAction="Do"
+          <button id="paTasks" tag="tasks" label="Extract Tasks" size="large" imageMso="NewTask" onAction="Do"
                   screentip="List what this thread leaves you to do"
                   supertip="Shows the actions with any deadlines. Tick the ones to add to your Outlook tasks." />
-          <menu id="paFollow" label="Follow Up" imageMso="FlagMessage"
+          <menu id="paFollow" label="Follow Up" size="large" imageMso="FlagMessage"
                 screentip="Remind me about this email" supertip="Flags the email with a reminder on the morning of the day you choose. For mailboxes that cannot hold dated flags, a task is created instead.">
             <button id="paFollow2" tag="follow2" label="In 2 days" onAction="Do" />
             <button id="paFollow3" tag="follow3" label="In 3 days" onAction="Do" />
@@ -58,7 +58,7 @@
         </group>
 
         <group id="paMeet" label="Meetings">
-          <button id="paTimes" tag="times" label="Find Times" size="large" imageMso="SchedulingAssistant" onAction="Do"
+          <button id="paTimes" tag="times" label="Find Times" size="large" imageMso="RecurrenceEdit" onAction="Do"
                   screentip="Find meeting times that are free in your calendar"
                   supertip="Reads what the thread is trying to arrange, checks the calendars you ticked in Settings, and lists free times. Tick the ones to offer and PApii drafts the reply. Only free and busy times are used, never what your calendar entries say." />
           <button id="paEvent" tag="event" label="Add to Calendar" size="large" imageMso="NewAppointment" onAction="Do"
@@ -99,11 +99,9 @@
         <group id="paApp" label="PApii">
           <button id="paShow" tag="pane" label="Show Pane" size="large" imageMso="ReviewShowMarkupMenu" onAction="Do"
                   screentip="Open the PApii pane" />
-          <button id="paHandoff" tag="handoff" label="Open in Claude Code" imageMso="VisualBasic" onAction="Do"
-                  screentip="Continue this email's conversation in Claude Code"
-                  supertip="Opens a terminal in the folder holding this email's thread and attachments, with the conversation from the pane carried over. There Claude Code works with its full set of tools and asks your permission as usual, which suits bigger jobs such as filling in an attached form." />
-          <dynamicMenu id="paHistory" label="History" imageMso="RecurrenceEdit" getContent="GetHistory" invalidateContentOnDrop="true"
-                       screentip="Recent emails you used PApii on" supertip="Pick one to continue its conversation in Claude Code." />
+          <dynamicMenu id="paHistory" label="Saved Sessions" getContent="GetHistory" invalidateContentOnDrop="true"
+                       screentip="The copies PApii keeps of threads you used it on"
+                       supertip="Pick one to open its folder and see exactly what was saved and sent: the thread as text, and its attachments. The last entry deletes them all. Sessions older than the limit in Settings are removed each time Outlook starts." />
           <button id="paPrompts" tag="prompts" label="Prompts" size="large" imageMso="TextBoxInsert" onAction="Do"
                   screentip="View and change the instructions PApii gives Claude"
                   supertip="Edit the wording behind Draft Reply, Assist, Summarize and follow-ups, or the ground rules sent with every email. Each one can be reset to the built-in text." />

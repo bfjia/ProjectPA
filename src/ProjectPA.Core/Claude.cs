@@ -163,24 +163,6 @@ public static class Claude
         }
     }
 
-    // Full, interactive Claude Code in a terminal, in a session's folder. Picks the conversation up
-    // where the pane left it when there is one (session.id is written after the first answer).
-    public static ProcessStartInfo Handoff(string dir, bool windowsTerminal = true)
-    {
-        var exe = Find() ?? throw new InvalidOperationException("Claude Code was not found. Install it, or set its path in Settings.");
-        var id = Path.Combine(dir, "session.id");
-        var claude = Quote(exe) + (File.Exists(id) ? " --resume " + File.ReadAllText(id).Trim() : "");
-        return windowsTerminal
-            ? new ProcessStartInfo("wt.exe", $"-d {Quote(dir)} {claude}") { UseShellExecute = true }
-            : new ProcessStartInfo("cmd.exe", "/k " + claude) { WorkingDirectory = dir, UseShellExecute = true };
-    }
-
-    public static void OpenInTerminal(string dir)
-    {
-        try { Process.Start(Handoff(dir)); }
-        catch (System.ComponentModel.Win32Exception) { Process.Start(Handoff(dir, false)); }   // no Windows Terminal
-    }
-
     // Windows argv quoting
     public static string Quote(string s)
     {

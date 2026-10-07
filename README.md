@@ -12,14 +12,20 @@ In development. This file and the documents in `docs/` are updated as each featu
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | Repository, solution skeleton, add-in registration, pane, Claude integration | Done; loads in Outlook |
-| 1 | Reply drafting, Assist, Summarize, follow-up questions, ribbon options, settings, prompt editor | Built; in-Outlook checks in progress |
-| 2 | Find meeting times, tentative holds, add to calendar, Assist button in the reading pane | Built; in-Outlook checks in progress |
-| 3 | Write from a brief, polish your own text, extract tasks, follow-up reminders, writing-style learning | Built; in-Outlook checks in progress |
-| 4 | History, hand-off to Claude Code | Built; in-Outlook checks in progress |
-| Later | Custom ribbon icons, start-up tuning, a built-in form filling and signing flow | Not started |
+| 0 | Repository, solution skeleton, add-in registration, pane, Claude integration | Done |
+| 1 | Reply drafting, Assist, Summarize, follow-up questions, ribbon options, settings, prompt editor | Done |
+| 2 | Find meeting times, tentative holds, add to calendar with a time-zone choice | Done |
+| 3 | Write from a brief, polish your own text, extract tasks, follow-up reminders, writing-style learning | Done |
+| 4 | Saved sessions: listed on the ribbon, removed automatically after a week, or all at once | Done |
 
-Until form filling is built in, an attached form can be handled by opening the email's session in Claude Code from the ribbon; see the user guide.
+## Future work
+
+Not started. Listed here so they are not lost.
+
+- **Send invitations from Add to Calendar.** A toggle on the event card that sends a meeting request to the other participants, off by default. Today PApii only adds the entry to your own calendar.
+- **Filling in and signing attached forms.** A button that starts a guided conversation to fill a PDF or Word form from the thread and your own details, stamp a signature image where you approve it, and attach the result to a reply. This needs a document library and is the one feature expected to require installing something extra.
+- **Custom ribbon icons.** The buttons use icons built into Office, picked for the closest meaning.
+- **Start-up and response-time tuning.**
 
 ## Dependencies
 

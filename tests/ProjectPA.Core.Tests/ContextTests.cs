@@ -135,6 +135,18 @@ public class ContextTests
     }
 
     [Fact]
+    public void ToLocal_converts_another_zones_wall_clock()
+    {
+        var t = new DateTime(2026, 10, 15, 14, 0, 0);
+        Assert.Equal(t, Scheduling.ToLocal(t, null));                       // no zone: already local
+        Assert.Equal(t, Scheduling.ToLocal(t, TimeZoneInfo.Local.Id));
+        // 14:00 in UTC is 14:00 plus this computer's offset
+        Assert.Equal(t + TimeZoneInfo.Local.GetUtcOffset(DateTime.SpecifyKind(t, DateTimeKind.Utc)), Scheduling.ToLocal(t, "UTC"));
+        // Tokyo is always nine hours ahead of UTC
+        Assert.Equal(Scheduling.ToLocal(t, "UTC").AddHours(-9), Scheduling.ToLocal(t, "Tokyo Standard Time"));
+    }
+
+    [Fact]
     public void Parse_reads_the_prompt_format() =>
         Assert.Equal(new DateTime(2026, 10, 15, 14, 0, 0), Scheduling.Parse("2026-10-15T14:00"));
 

@@ -70,7 +70,7 @@ New-Object -ComObject ProjectPA.PaneHost       # constructs the pane
 
 `ProjectPA.DevHost.exe` hosts the real pane and makes real Claude calls. It is the fastest way to work on the pane, the prompts and the Claude integration.
 
-By default it works on a built-in sample thread (a three-message budget discussion).
+By default it works on a built-in sample thread (a three-message budget discussion), and it keeps its own settings, prompts and sessions in a scratch folder, `%TEMP%\ProjectPA-DevHost`. Nothing a DevHost run does can reach the real settings or the real saved sessions unless it is started with `--real-data`.
 
 | Option | Effect |
 |---|---|
@@ -85,8 +85,8 @@ By default it works on a built-in sample thread (a three-message budget discussi
 | `--model haiku` | Model for this run only; not saved. |
 | `--shot out.png` | When everything has finished, save a picture of the pane (or of the `--show` window) and exit. The window stays off screen. Text passed to "insert into reply" is written to `out.png.inserted.txt`. |
 | `--outlook` | Work on the email selected in the running Outlook instead of the sample thread. |
-| `--dump file` | Read the email selected in the running Outlook, write the shape of its thread to the file, and exit. Only counts, sizes, dates and flags are written, never names or text. |
-| `--header file` | Work out where the reading-pane Assist button would go in the running Outlook, write the result to the file, and exit. Nothing is added to Outlook. |
+| `--dump file` | Read the email selected in the running Outlook, write the shape of its thread and of the calendars to the file, and exit. Only counts, sizes, dates and flags are written, never names or text. |
+| `--real-data` | Use the real data folder (`%LOCALAPPDATA%\ProjectPA`) instead of the scratch folder. Changes made in the run, including settings, are then real. |
 
 ```powershell
 $exe = 'src\ProjectPA.DevHost\bin\Release\net48\ProjectPA.DevHost.exe'
@@ -123,16 +123,11 @@ Everything the add-in writes at run time is under `%LOCALAPPDATA%\ProjectPA`:
 | `app\<timestamp>` | Installed builds. |
 | `settings.json` | Model, effort and other options. |
 | `logs\<date>.log` | One log file per day. |
-| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude), `attachments\`, and `session.id` (the Claude Code conversation, once there is one). Deleted after the number of days set in Settings. |
+| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Folders older than the number of days set in Settings (7 by default) are removed each time Outlook starts. |
 | `prompts\<name>.md` | Prompts the user changed in the Prompts window. A file here replaces the built-in prompt of the same name. |
 | `style\<account>.md` | The writing-style description learned for an account, added to every draft request for it. |
 
-Setting the environment variable `PROJECTPA_DATA` to a folder makes everything above live there instead. The unit tests use it so that they never touch real settings or prompts, and it is handy for trying something in the DevHost without disturbing the installed add-in:
-
-```powershell
-$env:PROJECTPA_DATA = "$env:TEMP\papii-scratch"
-Start-Process src\ProjectPA.DevHost\bin\Release\net48\ProjectPA.DevHost.exe
-```
+Setting the environment variable `PROJECTPA_DATA` to a folder makes everything above live there instead. The unit tests and the DevHost both use it, so that neither ever touches the real settings, prompts or sessions.
 
 ## Troubleshooting
 

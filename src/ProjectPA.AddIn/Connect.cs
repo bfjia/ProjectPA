@@ -26,9 +26,6 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     Office.ICTPFactory factory;
     readonly List<Office.IRibbonUI> ribbons = new();
     readonly Dictionary<IntPtr, Office.CustomTaskPane> panes = new();
-    readonly Dictionary<IntPtr, HeaderButton> headers = new();
-    Outlook.Explorers explorers;
-    System.Windows.Forms.Timer headerTimer;
 
     static Connect()
     {
@@ -46,48 +43,13 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     {
         app = (Outlook.Application)application;
         Log.Info($"connected, build {typeof(Connect).Assembly.Location}");
-        if (mode != ext_ConnectMode.ext_cm_Startup) Safe(StartHeaders);   // enabled by hand: no startup event follows
+        // old sessions go each time Outlook starts; off the main thread, so startup is not held up
+        Task.Run(() => Context.PurgeSessions(Settings.Current.KeepDays));
     }
     public void OnDisconnection(ext_DisconnectMode mode, ref Array custom) { }
     public void OnAddInsUpdate(ref Array custom) { }
-    public void OnStartupComplete(ref Array custom) => Safe(StartHeaders);
-    public void OnBeginShutdown(ref Array custom) => headerTimer?.Stop();
-
-    // The Assist button in each main window's reading pane header. See HeaderButton.
-    void StartHeaders()
-    {
-        if (headerTimer != null) return;
-        explorers = app.Explorers;
-        headerTimer = new System.Windows.Forms.Timer { Interval = 300 };
-        headerTimer.Tick += (_, _) =>
-        {
-            try { PlaceHeaders(); }
-            catch (Exception e)
-            {
-                headerTimer.Stop();   // unsupported territory: one failure and we leave it alone
-                Log.Error("header button, off until Outlook restarts", e);
-            }
-        };
-        headerTimer.Start();
-    }
-
-    void PlaceHeaders()
-    {
-        foreach (var gone in headers.Keys.Where(h => !IsWindow(h)).ToList())
-        {
-            headers[gone].Dispose();
-            headers.Remove(gone);
-        }
-        if (explorers.Count != headers.Count)   // a main window opened
-            foreach (Outlook.Explorer ex in explorers)
-            {
-                ((IOleWindow)ex).GetWindow(out var hwnd);
-                if (headers.ContainsKey(hwnd)) continue;
-                var b = headers[hwnd] = new HeaderButton(hwnd);
-                b.Click += (_, _) => Safe(() => { var a = Pane(ex, hwnd).PApii; a.Go(a.Assist); });
-            }
-        foreach (var b in headers.Values) b.Place(Settings.Current.HeaderButton);
-    }
+    public void OnStartupComplete(ref Array custom) { }
+    public void OnBeginShutdown(ref Array custom) { }
 
     public void CTPFactoryAvailable(Office.ICTPFactory f) => factory = f;
 
@@ -137,12 +99,11 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
             case "tasks": a.Go(a.ExtractTasks); break;
             case "brief": a.AskBrief(); break;
             case "polish": a.Go(a.Polish); break;
-            case "handoff": a.Go(a.OpenInClaude); break;
             case var t when t.StartsWith("follow"): a.Go(() => a.FollowUpIn(int.Parse(t.Substring(6)))); break;
         }
     });
 
-    // History menu: built each time it drops down. tag is the session folder's name.
+    // Saved Sessions menu: built each time it drops down. tag is the session folder's name.
     public string GetHistory(Office.IRibbonControl c)
     {
         var items = "";
@@ -153,11 +114,22 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
                 items += $"<button id=\"paHist{n++}\" tag=\"{Path.GetFileName(dir)}\" onAction=\"OpenSession\" label=\"{System.Security.SecurityElement.Escape($"{subject}  ({when:d MMM, HH:mm})")}\" />";
         }
         catch (Exception e) { Log.Error("history", e); }
-        if (items == "") items = "<button id=\"paHistNone\" label=\"Nothing yet\" enabled=\"false\" />";
+        items = items == "" ? "<button id=\"paHistNone\" label=\"Nothing saved\" enabled=\"false\" />"
+            : items + "<menuSeparator id=\"paHistSep\" /><button id=\"paHistClear\" label=\"Delete All Saved Sessions...\" onAction=\"ClearSessions\" />";
         return $"<menu xmlns=\"http://schemas.microsoft.com/office/2009/07/customui\">{items}</menu>";
     }
 
-    public void OpenSession(Office.IRibbonControl c) => Safe(() => Claude.OpenInTerminal(Path.Combine(Paths.Sessions, c.Tag)));
+    // shows what was saved (and sent) for that email; delete the folder there to remove just that one
+    public void OpenSession(Office.IRibbonControl c) => Safe(() =>
+        System.Diagnostics.Process.Start("explorer.exe", Claude.Quote(Path.Combine(Paths.Sessions, c.Tag))));
+
+    public void ClearSessions(Office.IRibbonControl c) => Safe(() =>
+    {
+        var n = Directory.GetDirectories(Paths.Sessions).Length;
+        if (MessageBox.Show($"Delete all {n} saved sessions?\n\nThese are the copies of threads and attachments PApii keeps so you can ask follow-up questions. Your emails in Outlook are not affected.",
+                "PApii", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+            Task.Run(() => Context.ClearSessions());
+    });
 
     public int GetIndex(Office.IRibbonControl c) => Math.Max(0, Array.IndexOf(Lists[c.Tag].values, Lists[c.Tag].get(Settings.Current)));
     public void SetIndex(Office.IRibbonControl c, string id, int i) => Change(s => Lists[c.Tag].set(s, Lists[c.Tag].values[i]));
@@ -175,7 +147,6 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
     // Pane of one window (main, read or compose). Made on first use.
     PApiiPane Pane(object window, IntPtr hwnd)
     {
-        if (panes.Count == 0) Task.Run(() => Context.PurgeSessions(Settings.Current.KeepDays));   // once per Outlook run
         foreach (var gone in panes.Keys.Where(h => !IsWindow(h)).ToList()) panes.Remove(gone);
 
         if (!panes.TryGetValue(hwnd, out var p))

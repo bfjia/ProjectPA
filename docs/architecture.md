@@ -42,27 +42,13 @@ A task pane must be an ActiveX control, so `PaneHost` is a COM-visible Windows F
 
 `Connect` also installs an assembly-resolve handler. Outlook loads the add-in from its install folder, but WPF looks up assemblies by name, which does not search that folder; the handler fills the gap.
 
-## The reading pane button
+## Tried and removed
 
-The Assist button in the message header is the one part of PApii that does not go through an Outlook extension point, because there is none for that area. It relies on an observation: the reading pane header is an ordinary Windows dialog (window class `#32770`) whose children include a toolbar (`ToolbarWindow32`) holding Reply, Reply All and Forward. Copilot's own Summarize button is a child window of the same dialog.
+Two things were built and then taken out. They are recorded here so they are not rebuilt by accident.
 
-`HeaderButton` (in `src/ProjectPA.AddIn/HeaderButton.cs`) is a small custom-drawn control that PApii creates as another child of that dialog. A timer in `Connect` runs three times a second and calls `HeaderButton.Place` for each main window, which:
+**A button in the reading pane header.** Outlook gives COM add-ins no way to put a button next to Reply, Reply All and Forward. An Assist button was placed there anyway, as a child window of the header (an ordinary dialog, the same one Copilot's Summarize button lives in), kept in position by a timer. It worked but did not feel solid in use, and it depended on Outlook internals. The ribbon, the Home tab group and the right-click menu are the supported places and are the only ones now.
 
-1. finds the visible header dialog under the main window and its visible toolbar;
-2. computes a rectangle the height of the toolbar, immediately to its left;
-3. hides the button if that rectangle would overlap any other visible control in the header (which happens when the pane is narrow and the sender line reaches that far), and otherwise moves the button there.
-
-Being a child window, the button moves, clips and hides with the header for free; the timer only has to notice layout changes. When Outlook destroys the header and builds a new one, the button's window is destroyed with it and is recreated in the new header on the next tick.
-
-Because this depends on Outlook internals, it is built to fail quietly:
-
-- The button is never a standard `Button` control. A standard button reports clicks to its parent window, which here is Outlook's dialog and could mistake the message for one of its own commands. `HeaderButton` handles its own mouse input, and sets `WS_EX_NOPARENTNOTIFY` so the dialog is not told about it at all.
-- It cannot take keyboard focus, so clicking it does not pull focus out of the message list.
-- No Outlook window is subclassed, resized or moved. PApii only reads positions and places its own window.
-- If the header or toolbar is not found, the button is simply hidden. If anything throws, the timer stops for the rest of the Outlook session and the error is logged once.
-- It can be switched off in Settings (`HeaderButton` in `settings.json`).
-
-The DevHost option `--header` runs the locating step against the running Outlook from outside and reports where the button would go, without creating it.
+**Hand-off to interactive Claude Code.** A button opened a terminal running Claude Code in a session's folder, continuing the pane's conversation with full tools. It was removed as not wanted. The Saved Sessions menu that grew out of it remains, and now opens the session's folder instead.
 
 ## The host interface
 
@@ -105,9 +91,9 @@ What reaches Anthropic for this feature is the thread and the free windows. Cale
 
 **Holds.** "Hold on calendar" creates tentative appointments in the category "PApii hold", with a line in the body naming the thread's subject. `RemoveHolds` finds them again by that category and line when the real meeting is added, and deletes them (to Deleted Items). Holds made by PApii are not counted as conflicts for the meeting they were made for.
 
-Requests that return data run at low effort regardless of the ribbon setting, because extraction needs little deliberation and the user is waiting.
+**Time zones.** Each prompt is told the user's time zone and the current time, to convert times stated in other zones to local time, and to resolve relative days ("Thursday") from the date of the message that mentions them. The event card adds a Time zone menu, defaulting to the computer's zone, that says which zone the entered date and times are in. For another zone, `EventDraft.TimeZoneId` is set and `OutlookHost.CreateEvent` assigns that zone to the appointment and writes the times as wall-clock times in it, so Outlook stores the zone with the entry. If Outlook does not recognise the zone name, the times are converted to local time with `Scheduling.ToLocal` instead.
 
-Each prompt is told the user's time zone and the current time, and to resolve relative days ("Thursday") from the date of the message that mentions them.
+Requests that return data use the same model and effort as everything else. An earlier version forced low effort for speed; it was reverted after it produced a wrong date, since a wrong calendar entry costs more than a few seconds.
 
 ## Writing, tasks and style
 
@@ -117,11 +103,20 @@ Each prompt is told the user's time zone and the current time, and to resolve re
 
 **Writing style.** Learn in Settings calls `IHost.SentSamples` for about 30 recent sent emails (the user's own text only), sends them in a single one-off request with the `style` prompt, and saves the reply to `%LOCALAPPDATA%\ProjectPA\style\<account>.md`. `Prompts.StyleNote` appends that file to the system prompt of every session for the account. It is appended in code and not through a placeholder, so it keeps working when the user has replaced the Ground rules prompt with their own.
 
-## Handing over to Claude Code
+## Saved sessions
 
-Every session folder holds `thread.md`, the saved attachments and, once Claude has answered at least once, `session.id` with the identifier of the conversation. `Claude.Handoff` builds the command that opens Windows Terminal in that folder running `claude --resume <id>` (or plain `claude` when there is no conversation yet), with a command window as the fallback. The ribbon's Open in Claude Code button does this for the pane's current session. The History menu is a `dynamicMenu` whose content `Connect.GetHistory` rebuilds each time it drops down from `Context.RecentSessions`, which reads the subject from the first line of each folder's `thread.md`.
+Every email worked on gets a session folder under `%LOCALAPPDATA%\ProjectPA\sessions`, named by timestamp, holding `thread.md` (the thread exactly as sent), `system.md` and the saved attachments. Claude Code separately keeps its own transcript of each conversation under `~/.claude/projects`, keyed by that folder's path.
 
-The interactive session is ordinary Claude Code: the pane's restrictions (`--restricted`, `--tools Read`, `--permission-mode dontAsk`) were flags of the headless runs and do not carry over, so the user's normal permission prompts apply. That is the intended division: the pane can do nothing risky without a click, and anything that needs tools happens where the user can watch and approve it.
+- **Automatic clean-up.** `Connect.OnConnection` starts a background task that calls `Context.PurgeSessions` with the retention period from Settings (seven days by default). It runs off the main thread, so Outlook's start-up is not delayed.
+- **Removal is complete.** `Context.RemoveSessions` first runs `claude purge <folder> --yes`, which deletes Claude Code's transcript for that folder, and then deletes the folder.
+- **The Saved Sessions menu** is a `dynamicMenu` whose content `Connect.GetHistory` rebuilds each time it drops down from `Context.RecentSessions`, which reads the subject from the first line of each folder's `thread.md`. Picking an entry opens the folder in File Explorer. The last entry deletes all sessions after a confirmation.
+- A pane whose session folder has been deleted reloads the thread on its next action.
+
+## Settings
+
+`Settings.Current` re-reads `settings.json` whenever the file's timestamp changes. Without that, a process holding an older copy in memory would silently write it back over a change made elsewhere. The defaults are Opus at medium effort.
+
+The DevHost uses a scratch data folder in `%TEMP%` unless started with `--real-data`. This is deliberate: a DevHost test run once saved its temporary model choice into the real settings file.
 
 ## How generation works
 

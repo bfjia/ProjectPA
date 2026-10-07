@@ -62,21 +62,42 @@ public class ClaudeTests
     public void Quote_follows_windows_rules(string raw, string quoted) => Assert.Equal(quoted, Claude.Quote(raw));
 
     [Fact]
-    public void RecentSessions_and_handoff_use_the_session_folder()
+    public void Sessions_are_listed_and_removed()
     {
         var dir = Directory.CreateDirectory(Path.Combine(Paths.Sessions, "20261007-114000-123")).FullName;
         File.WriteAllText(Path.Combine(dir, "thread.md"), "# Email thread: Q3 <budget> & more\nMailbox: x\n");
-        Directory.CreateDirectory(Path.Combine(Paths.Sessions, "20261007-120000-000"));   // no thread.md: not listed
+        var bare = Directory.CreateDirectory(Path.Combine(Paths.Sessions, "20261007-120000-000")).FullName;   // no thread.md: not listed
 
         var s = Context.RecentSessions().Single(x => x.dir == dir);
         Assert.Equal("Q3 <budget> & more", s.subject);
         Assert.Equal(new DateTime(2026, 10, 7, 11, 40, 0), s.when);
+        Assert.DoesNotContain(Context.RecentSessions(), x => x.dir == bare);
 
-        if (Claude.Find() == null) return;   // machine without Claude Code: nothing more to check
-        Assert.DoesNotContain("--resume", Claude.Handoff(dir).Arguments);        // no answer yet, so nothing to resume
-        File.WriteAllText(Path.Combine(dir, "session.id"), "abc-123\n");
-        Assert.EndsWith("--resume abc-123", Claude.Handoff(dir).Arguments);
-        Assert.Equal(dir, Claude.Handoff(dir, windowsTerminal: false).WorkingDirectory);
+        // forget: false keeps the test from starting Claude Code
+        Assert.Equal(2, Context.RemoveSessions(new[] { dir, bare }, forget: false));
+        Assert.False(Directory.Exists(dir));
+        Assert.False(Directory.Exists(bare));
+    }
+
+    [Fact]
+    public void Settings_defaults_and_reload_from_disk()
+    {
+        var s = new Settings();
+        Assert.Equal(("opus", "medium", 7), (s.Model, s.Effort, s.KeepDays));
+
+        var file = Path.Combine(Paths.Data, "settings.json");
+        Settings.Current.Tone = "formal";
+        Settings.Current.Save();
+        Assert.Equal("formal", Settings.Current.Tone);
+
+        // someone else edits the file: the next read sees it, and the lists are replaced, not appended to
+        File.WriteAllText(file, File.ReadAllText(file).Replace("\"formal\"", "\"concise\""));
+        File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(5));
+        Assert.Equal("concise", Settings.Current.Tone);
+        Assert.Equal(5, Settings.Current.WorkDays.Count);
+
+        Settings.Current.Tone = "auto";
+        Settings.Current.Save();
     }
 
     [Fact]
