@@ -1,0 +1,27 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="OnLoad">
+  <ribbon>
+    <tabs>
+      <tab id="paTab" label="Assistant">
+        <group id="paMain" label="Assistant">
+          <button id="paShow" label="Show Pane" size="large" imageMso="HappyFace" onAction="ShowPane"
+                  screentip="Open the assistant pane" />
+        </group>
+        <group id="paModel" label="Model">
+          <dropDown id="paModelDd" label="Model" sizeString="Sonnet00" getSelectedItemIndex="GetModel" onAction="SetModel"
+                    screentip="Claude model used for generation">
+            <item id="haiku" label="Haiku" />
+            <item id="sonnet" label="Sonnet" />
+            <item id="opus" label="Opus" />
+            <item id="fable" label="Fable" />
+          </dropDown>
+          <dropDown id="paEffortDd" label="Effort" sizeString="Medium00" getSelectedItemIndex="GetEffort" onAction="SetEffort"
+                    screentip="How much thinking the model does. Higher is slower.">
+            <item id="low" label="Low" />
+            <item id="medium" label="Medium" />
+            <item id="high" label="High" />
+          </dropDown>
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

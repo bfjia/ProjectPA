@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup>
+    <!-- implicit using, but net48 has no reference to it -->
+    <Using Remove="System.Net.Http" />
+  </ItemGroup>
+</Project>

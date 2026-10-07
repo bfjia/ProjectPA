@@ -26,8 +26,15 @@ Form filling and signing is planned for later and is not part of the current wor
 
 ## Documentation
 
-- `docs/user-guide.md`: every button, flow and setting.
-- `docs/architecture.md`: how the add-in works and why it is built this way.
-- `docs/development.md`: building, testing, installing and troubleshooting.
+- [docs/architecture.md](docs/architecture.md): how the add-in works and why it is built this way.
+- [docs/development.md](docs/development.md): building, testing, installing and troubleshooting.
+- `docs/user-guide.md`: every button, flow and setting. Added with Phase 1.
 
-These documents are added during Phase 0 and Phase 1.
+## Quick start
+
+```powershell
+scripts\build.ps1      # build and run the tests
+scripts\install.ps1    # install for the current user, then restart Outlook
+```
+
+An **Assistant** tab appears in the Outlook ribbon. To remove the add-in, run `scripts\uninstall.ps1`.

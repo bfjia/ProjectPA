@@ -1,0 +1,69 @@
+<UserControl x:Class="ProjectPA.UI.AssistantPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F5F5F5" FontFamily="Segoe UI" FontSize="13" Foreground="#222">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="Vis" />
+    <Style TargetType="Button">
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="#C8C8C8" />
+    </Style>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <ScrollViewer x:Name="scroll" VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Cards}" Margin="8,8,8,0">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border x:Name="box" Background="White" BorderBrush="#DCDCDC" BorderThickness="1"
+                    CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+              <StackPanel>
+                <TextBlock x:Name="title" Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="#6B6B6B" />
+                <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
+                         AcceptsReturn="True" BorderThickness="0" Background="Transparent" Padding="0" Margin="-2,4,0,0" />
+              </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+              <DataTrigger Binding="{Binding Failed}" Value="True">
+                <Setter TargetName="box" Property="BorderBrush" Value="#D13438" />
+                <Setter TargetName="title" Property="Foreground" Value="#D13438" />
+              </DataTrigger>
+            </DataTemplate.Triggers>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Grid Grid.Row="1" Margin="8,4,8,4">
+      <TextBox x:Name="input" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" PreviewKeyDown="InputKey"
+               AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52" MaxHeight="160" Padding="6"
+               VerticalScrollBarVisibility="Auto" BorderBrush="#C8C8C8" />
+      <TextBlock Text="Ask, or say what to change. Enter sends, Shift+Enter adds a line."
+                 Foreground="#8A8A8A" Margin="9,7" IsHitTestVisible="False" TextWrapping="Wrap">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Input}" Value="">
+                <Setter Property="Visibility" Value="Visible" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+    </Grid>
+
+    <DockPanel Grid.Row="2" Margin="8,0,8,8" LastChildFill="True">
+      <Button DockPanel.Dock="Right" Content="Stop" Command="{Binding Stop}"
+              Visibility="{Binding Busy, Converter={StaticResource Vis}}" />
+      <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#6B6B6B" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+    </DockPanel>
+  </Grid>
+</UserControl>
