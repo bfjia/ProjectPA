@@ -22,6 +22,23 @@ public static class Context
     public static string NewSession() =>
         Directory.CreateDirectory(Path.Combine(Paths.Sessions, $"{DateTime.Now:yyyyMMdd-HHmmss-fff}")).FullName;
 
+    // Newest first: session folder, what it was about, when. Folder names are timestamps.
+    public static List<(string dir, string subject, DateTime when)> RecentSessions(int count = 12)
+    {
+        var list = new List<(string, string, DateTime)>();
+        foreach (var d in Directory.GetDirectories(Paths.Sessions).OrderByDescending(d => d))
+        {
+            var thread = Path.Combine(d, "thread.md");
+            var name = Path.GetFileName(d);
+            if (list.Count == count) break;
+            if (!File.Exists(thread) || name.Length < 15
+                || !DateTime.TryParseExact(name.Substring(0, 15), "yyyyMMdd-HHmmss", null, System.Globalization.DateTimeStyles.None, out var when)) continue;
+            var title = Regex.Replace(File.ReadLines(thread).FirstOrDefault() ?? "", @"^#\s*(Email thread:\s*)?", "").Trim();
+            if (title.Length > 0) list.Add((d, title, when));
+        }
+        return list;
+    }
+
     public static void PurgeSessions(int days)
     {
         foreach (var d in Directory.GetDirectories(Paths.Sessions))

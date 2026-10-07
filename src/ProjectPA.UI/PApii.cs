@@ -240,7 +240,11 @@ public class PApii : Observable
 
         Status = $"{s.Model} · {effort} · {r.Ms / 1000.0:0.0} s{usage}";
         if (r.Ok && schema != null && r.Structured == null) r.Error = "Claude did not return the details in the expected form. Try again.";
-        if (r.Ok) fresh = false;
+        if (r.Ok)
+        {
+            if (fresh) File.WriteAllText(Path.Combine(workDir, "session.id"), sessionId);   // now there is a conversation to hand over
+            fresh = false;
+        }
         else
         {
             if (fresh) sessionId = Guid.NewGuid().ToString();   // the failed run may have claimed the id
@@ -430,6 +434,14 @@ public class PApii : Observable
             card.Buttons.Clear();
         }, true);
     });
+
+    // Continues this email's conversation in full Claude Code, in a terminal.
+    public Task OpenInClaude()
+    {
+        if (workDir == null) throw new InvalidOperationException("There is nothing to open yet. Use a PApii action on an email first.");
+        Claude.OpenInTerminal(workDir);
+        return Task.CompletedTask;
+    }
 
     // A reminder on the selected email. No request to Claude.
     public Task FollowUpIn(int days) => Act(() =>

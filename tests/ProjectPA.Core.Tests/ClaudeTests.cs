@@ -62,6 +62,24 @@ public class ClaudeTests
     public void Quote_follows_windows_rules(string raw, string quoted) => Assert.Equal(quoted, Claude.Quote(raw));
 
     [Fact]
+    public void RecentSessions_and_handoff_use_the_session_folder()
+    {
+        var dir = Directory.CreateDirectory(Path.Combine(Paths.Sessions, "20261007-114000-123")).FullName;
+        File.WriteAllText(Path.Combine(dir, "thread.md"), "# Email thread: Q3 <budget> & more\nMailbox: x\n");
+        Directory.CreateDirectory(Path.Combine(Paths.Sessions, "20261007-120000-000"));   // no thread.md: not listed
+
+        var s = Context.RecentSessions().Single(x => x.dir == dir);
+        Assert.Equal("Q3 <budget> & more", s.subject);
+        Assert.Equal(new DateTime(2026, 10, 7, 11, 40, 0), s.when);
+
+        if (Claude.Find() == null) return;   // machine without Claude Code: nothing more to check
+        Assert.DoesNotContain("--resume", Claude.Handoff(dir).Arguments);        // no answer yet, so nothing to resume
+        File.WriteAllText(Path.Combine(dir, "session.id"), "abc-123\n");
+        Assert.EndsWith("--resume abc-123", Claude.Handoff(dir).Arguments);
+        Assert.Equal(dir, Claude.Handoff(dir, windowsTerminal: false).WorkingDirectory);
+    }
+
+    [Fact]
     public void Args_pick_mode_and_session()
     {
         var stream = Claude.Args(new ClaudeRequest { SessionId = "id1", SystemPrompt = "x" });

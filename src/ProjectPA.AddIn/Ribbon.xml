@@ -99,6 +99,11 @@
         <group id="paApp" label="PApii">
           <button id="paShow" tag="pane" label="Show Pane" size="large" imageMso="ReviewShowMarkupMenu" onAction="Do"
                   screentip="Open the PApii pane" />
+          <button id="paHandoff" tag="handoff" label="Open in Claude Code" imageMso="VisualBasic" onAction="Do"
+                  screentip="Continue this email's conversation in Claude Code"
+                  supertip="Opens a terminal in the folder holding this email's thread and attachments, with the conversation from the pane carried over. There Claude Code works with its full set of tools and asks your permission as usual, which suits bigger jobs such as filling in an attached form." />
+          <dynamicMenu id="paHistory" label="History" imageMso="RecurrenceEdit" getContent="GetHistory" invalidateContentOnDrop="true"
+                       screentip="Recent emails you used PApii on" supertip="Pick one to continue its conversation in Claude Code." />
           <button id="paPrompts" tag="prompts" label="Prompts" size="large" imageMso="TextBoxInsert" onAction="Do"
                   screentip="View and change the instructions PApii gives Claude"
                   supertip="Edit the wording behind Draft Reply, Assist, Summarize and follow-ups, or the ground rules sent with every email. Each one can be reset to the built-in text." />

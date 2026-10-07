@@ -16,9 +16,10 @@ In development. This file and the documents in `docs/` are updated as each featu
 | 1 | Reply drafting, Assist, Summarize, follow-up questions, ribbon options, settings, prompt editor | Built; in-Outlook checks in progress |
 | 2 | Find meeting times, tentative holds, add to calendar, Assist button in the reading pane | Built; in-Outlook checks in progress |
 | 3 | Write from a brief, polish your own text, extract tasks, follow-up reminders, writing-style learning | Built; in-Outlook checks in progress |
-| 4 | History, hand-off to Claude Code, polish | Planned |
+| 4 | History, hand-off to Claude Code | Built; in-Outlook checks in progress |
+| Later | Custom ribbon icons, start-up tuning, a built-in form filling and signing flow | Not started |
 
-Form filling and signing is planned for later and is not part of the current work.
+Until form filling is built in, an attached form can be handled by opening the email's session in Claude Code from the ribbon; see the user guide.
 
 ## Dependencies
 

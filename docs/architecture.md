@@ -117,6 +117,12 @@ Each prompt is told the user's time zone and the current time, and to resolve re
 
 **Writing style.** Learn in Settings calls `IHost.SentSamples` for about 30 recent sent emails (the user's own text only), sends them in a single one-off request with the `style` prompt, and saves the reply to `%LOCALAPPDATA%\ProjectPA\style\<account>.md`. `Prompts.StyleNote` appends that file to the system prompt of every session for the account. It is appended in code and not through a placeholder, so it keeps working when the user has replaced the Ground rules prompt with their own.
 
+## Handing over to Claude Code
+
+Every session folder holds `thread.md`, the saved attachments and, once Claude has answered at least once, `session.id` with the identifier of the conversation. `Claude.Handoff` builds the command that opens Windows Terminal in that folder running `claude --resume <id>` (or plain `claude` when there is no conversation yet), with a command window as the fallback. The ribbon's Open in Claude Code button does this for the pane's current session. The History menu is a `dynamicMenu` whose content `Connect.GetHistory` rebuilds each time it drops down from `Context.RecentSessions`, which reads the subject from the first line of each folder's `thread.md`.
+
+The interactive session is ordinary Claude Code: the pane's restrictions (`--restricted`, `--tools Read`, `--permission-mode dontAsk`) were flags of the headless runs and do not carry over, so the user's normal permission prompts apply. That is the intended division: the pane can do nothing risky without a click, and anything that needs tools happens where the user can watch and approve it.
+
 ## How generation works
 
 `Claude.Run` in `src/ProjectPA.Core/Claude.cs` starts one `claude` process per request:

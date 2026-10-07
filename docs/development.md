@@ -123,7 +123,7 @@ Everything the add-in writes at run time is under `%LOCALAPPDATA%\ProjectPA`:
 | `app\<timestamp>` | Installed builds. |
 | `settings.json` | Model, effort and other options. |
 | `logs\<date>.log` | One log file per day. |
-| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Deleted after the number of days set in Settings. |
+| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude), `attachments\`, and `session.id` (the Claude Code conversation, once there is one). Deleted after the number of days set in Settings. |
 | `prompts\<name>.md` | Prompts the user changed in the Prompts window. A file here replaces the built-in prompt of the same name. |
 | `style\<account>.md` | The writing-style description learned for an account, added to every draft request for it. |
 

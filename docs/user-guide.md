@@ -93,6 +93,16 @@ The same pills as for replies appear underneath, and you can keep refining by ty
 
 On Exchange and Outlook.com mailboxes the email itself is flagged with the reminder. Gmail and other IMAP mailboxes cannot hold a dated flag, so a task named "Follow up: ..." is created with the same reminder.
 
+### Open in Claude Code, and History
+
+The pane is deliberately limited: it can read the thread and write text, and nothing else. For a bigger job on the same email, **Open in Claude Code** opens a terminal in the folder that holds this email's thread and attachments and continues the conversation from the pane in full Claude Code. There it can use all its tools, and it asks your permission before running commands or changing files, as Claude Code always does.
+
+This is the way to handle an attached form for now: use any PApii action on the email so its attachments are saved, click Open in Claude Code, and ask it to fill in the form. The saved attachments are in the `attachments` folder it starts in.
+
+**History** lists the emails you most recently used PApii on. Picking one opens that conversation in Claude Code in the same way. Sessions older than the retention period in Settings are no longer listed.
+
+Both need Windows Terminal or, failing that, use a plain command window.
+
 ### Asking questions
 
 At any point you can type a question about the thread in the box at the bottom, for example "what did they quote for the second option?" or "does the attached contract mention a notice period?". The answer appears as a new card. If your message asks for a change to a draft, you get a new draft instead.
@@ -116,6 +126,8 @@ At the bottom is a status line showing the model, the effort level, how long the
 | **Tone** | Tone of drafted replies. Auto matches the thread. Formal, Friendly and Concise override it. |
 | **Read attachments** | When ticked, attachments are read along with the messages. Untick it for speed, or when you do not want attachments sent. |
 | **Show Pane** | Opens the pane if you closed it. |
+| **Open in Claude Code** | Continues this email's conversation in full Claude Code, in a terminal. |
+| **History** | Recent emails you used PApii on; pick one to open it in Claude Code. |
 | **Prompts** | Opens the prompt editor described below, where you change the instructions PApii gives Claude. |
 | **Settings** | Opens the settings window described below. |
 

@@ -137,9 +137,27 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
             case "tasks": a.Go(a.ExtractTasks); break;
             case "brief": a.AskBrief(); break;
             case "polish": a.Go(a.Polish); break;
+            case "handoff": a.Go(a.OpenInClaude); break;
             case var t when t.StartsWith("follow"): a.Go(() => a.FollowUpIn(int.Parse(t.Substring(6)))); break;
         }
     });
+
+    // History menu: built each time it drops down. tag is the session folder's name.
+    public string GetHistory(Office.IRibbonControl c)
+    {
+        var items = "";
+        try
+        {
+            var n = 0;
+            foreach (var (dir, subject, when) in Context.RecentSessions())
+                items += $"<button id=\"paHist{n++}\" tag=\"{Path.GetFileName(dir)}\" onAction=\"OpenSession\" label=\"{System.Security.SecurityElement.Escape($"{subject}  ({when:d MMM, HH:mm})")}\" />";
+        }
+        catch (Exception e) { Log.Error("history", e); }
+        if (items == "") items = "<button id=\"paHistNone\" label=\"Nothing yet\" enabled=\"false\" />";
+        return $"<menu xmlns=\"http://schemas.microsoft.com/office/2009/07/customui\">{items}</menu>";
+    }
+
+    public void OpenSession(Office.IRibbonControl c) => Safe(() => Claude.OpenInTerminal(Path.Combine(Paths.Sessions, c.Tag)));
 
     public int GetIndex(Office.IRibbonControl c) => Math.Max(0, Array.IndexOf(Lists[c.Tag].values, Lists[c.Tag].get(Settings.Current)));
     public void SetIndex(Office.IRibbonControl c, string id, int i) => Change(s => Lists[c.Tag].set(s, Lists[c.Tag].values[i]));
