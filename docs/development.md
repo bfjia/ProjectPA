@@ -18,8 +18,8 @@ NuGet packages restored from nuget.org: `Newtonsoft.Json` for the product, and `
 
 | Path | Purpose |
 |---|---|
-| `src/ProjectPA.Core` | Logic with no Outlook or UI dependency: the Claude runner, settings, logging, prompts. |
-| `src/ProjectPA.UI` | The WPF assistant pane and the `Assistant` class that drives it. No Outlook dependency. |
+| `src/ProjectPA.Core` | Logic with no Outlook or UI dependency: the Claude runner, the thread model and its rendering, attachment text extraction, prompts, settings, logging. |
+| `src/ProjectPA.UI` | The WPF assistant pane, the settings window, and the `Assistant` class that drives them. No Outlook dependency. |
 | `src/ProjectPA.AddIn` | The COM add-in Outlook loads: ribbon, task pane hosting, and all Outlook object-model code. |
 | `src/ProjectPA.DevHost` | A small executable that shows the same pane in a normal window, for working without Outlook. |
 | `tests/ProjectPA.Core.Tests` | Unit tests for the core. |
@@ -70,14 +70,45 @@ New-Object -ComObject ProjectPA.PaneHost       # constructs the pane
 
 `ProjectPA.DevHost.exe` hosts the real pane and makes real Claude calls. It is the fastest way to work on the pane, the prompts and the Claude integration.
 
+By default it works on a built-in sample thread (a three-message budget discussion).
+
+| Option | Effect |
+|---|---|
+| `--do assist\|draft\|summarize` | Run that action on start. |
+| `--with "text"` | Instructions for `--do draft`. |
+| `--click "Label"` | Then press the button or pill with that label on the last card, for example `Shorter` or `Reply All`. |
+| `--say "text"` | Then type the text into the pane and send it. |
+| `--attach file` | Add a file to the sample thread as an attachment. |
+| `--model haiku` | Model for this run only; not saved. |
+| `--shot out.png` | When everything has finished, save a picture of the pane and exit. The window stays off screen. Text passed to "insert into reply" is written to `out.png.inserted.txt`. |
+| `--outlook` | Work on the email selected in the running Outlook instead of the sample thread. |
+| `--dump file` | Read the email selected in the running Outlook, write the shape of its thread to the file, and exit. Only counts, sizes, dates and flags are written, never names or text. |
+
 ```powershell
 $exe = 'src\ProjectPA.DevHost\bin\Release\net48\ProjectPA.DevHost.exe'
-& $exe                                            # interactive window
-& $exe --ask "Draft a short thank-you note"       # send a prompt on start
-& $exe --model haiku --ask "..." --shot out.png   # run, save a picture of the pane, exit
+Start-Process $exe                                                       # interactive window
+Start-Process $exe -Wait -ArgumentList '--model haiku --do draft --click Shorter --shot out.png'
+Start-Process $exe -Wait -ArgumentList '--dump thread-shape.txt'         # checks the Outlook-reading code
 ```
 
-With `--shot` the window is kept off screen and the process exits when the reply is complete, which makes it usable from scripts. `--model` applies to that run only and is not saved.
+It is a windowed program, so use `Start-Process -Wait` when a script needs to wait for it.
+
+`--dump` and `--outlook` attach to the running Outlook from outside. That exercises `OutlookHost`, the class with all the Outlook object-model code, without installing a new build or restarting Outlook. Outlook allows this without a prompt as long as Windows reports an active, up-to-date antivirus.
+
+## Checking the ribbon
+
+A mistake in the ribbon XML makes Outlook drop the whole ribbon silently. The installed add-in can be asked for the XML it would give each window, which catches malformed XML and duplicate ids before Outlook is involved:
+
+```powershell
+$c = New-Object -ComObject ProjectPA.Connect
+foreach ($id in 'Microsoft.Outlook.Explorer', 'Microsoft.Outlook.Mail.Read', 'Microsoft.Outlook.Mail.Compose') {
+    $doc = [xml]$c.GetCustomUI($id)
+    $ids = $doc.SelectNodes('//*[@id]') | ForEach-Object { $_.GetAttribute('id') }
+    "$id : $($ids.Count) ids, duplicates: $(($ids | Group-Object | Where-Object Count -gt 1).Name)"
+}
+```
+
+To see Outlook's own ribbon errors, turn on File, Options, Advanced, Developers, "Show add-in user interface errors".
 
 ## Runtime data
 
@@ -88,7 +119,7 @@ Everything the add-in writes at run time is under `%LOCALAPPDATA%\ProjectPA`:
 | `app\<timestamp>` | Installed builds. |
 | `settings.json` | Model, effort and other options. |
 | `logs\<date>.log` | One log file per day. |
-| `sessions\<timestamp>` | One folder per assistant conversation: the system prompt and, from Phase 1, the email thread and its attachments. |
+| `sessions\<timestamp>` | One folder per email worked on: `system.md` (the system prompt), `thread.md` (the thread as sent to Claude) and `attachments\`. Deleted after the number of days set in Settings. |
 | `prompts\<name>.md` | Optional. A file here replaces the built-in prompt of the same name. |
 
 ## Troubleshooting

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Windows.Forms.Integration;
 using Extensibility;
 using ProjectPA.UI;
@@ -13,8 +14,13 @@ namespace ProjectPA.AddIn;
 [ComVisible(true), Guid("7C8FF91B-71C4-40E7-AF0F-813F89238FC8"), ProgId("ProjectPA.Connect")]
 public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.ICustomTaskPaneConsumer
 {
-    static readonly string[] Models = { "haiku", "sonnet", "opus", "fable" };
-    static readonly string[] Efforts = { "low", "medium", "high" };
+    // ribbon dropdowns, by tag: the values in item order, and where the choice is stored
+    static readonly Dictionary<string, (string[] values, Func<Settings, string> get, Action<Settings, string> set)> Lists = new()
+    {
+        ["model"] = (new[] { "haiku", "sonnet", "opus", "fable" }, s => s.Model, (s, v) => s.Model = v),
+        ["effort"] = (new[] { "low", "medium", "high" }, s => s.Effort, (s, v) => s.Effort = v),
+        ["tone"] = (new[] { "auto", "formal", "friendly", "concise" }, s => s.Tone, (s, v) => s.Tone = v),
+    };
 
     Outlook.Application app;
     Office.ICTPFactory factory;
@@ -47,18 +53,47 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
 
     public string GetCustomUI(string id)
     {
-        if (id is not ("Microsoft.Outlook.Explorer" or "Microsoft.Outlook.Mail.Read" or "Microsoft.Outlook.Mail.Compose")) return null;
+        var home = id switch
+        {
+            "Microsoft.Outlook.Explorer" => "TabMail",
+            "Microsoft.Outlook.Mail.Read" => "TabReadMessage",
+            "Microsoft.Outlook.Mail.Compose" => "TabNewMailMessage",
+            _ => null,
+        };
+        if (home == null) return null;
         using var r = new StreamReader(typeof(Connect).Assembly.GetManifestResourceStream("Ribbon.xml"));
-        return r.ReadToEnd();
+        var xml = r.ReadToEnd().Replace("{HOME}", home);
+        // the message context menu exists only in the main window; naming it elsewhere breaks the whole ribbon
+        return home == "TabMail" ? xml : Regex.Replace(xml, "<contextMenus>.*</contextMenus>", "", RegexOptions.Singleline);
     }
 
     public void OnLoad(Office.IRibbonUI r) => ribbons.Add(r);
-    // (object): interop hands these out as dynamic, keep the calls statically bound
-    public void ShowPane(Office.IRibbonControl c) => Safe(() => Pane((object)c.Context));
-    public int GetModel(Office.IRibbonControl c) => Math.Max(0, Array.IndexOf(Models, Settings.Current.Model));
-    public int GetEffort(Office.IRibbonControl c) => Math.Max(0, Array.IndexOf(Efforts, Settings.Current.Effort));
-    public void SetModel(Office.IRibbonControl c, string id, int i) => Change(s => s.Model = Models[i]);
-    public void SetEffort(Office.IRibbonControl c, string id, int i) => Change(s => s.Effort = Efforts[i]);
+
+    public void Do(Office.IRibbonControl c) => Safe(() =>
+    {
+        // (object): interop hands Context out as dynamic. From a context menu it is the selection, not a window.
+        object ctx = c.Context;
+        var window = ctx is Outlook.Explorer || ctx is Outlook.Inspector ? ctx : app.ActiveExplorer();
+        ((IOleWindow)window).GetWindow(out var hwnd);
+        if (c.Tag == "settings")
+        {
+            SettingsWindow.Show(new OutlookHost(app, window).Accounts, hwnd);
+            return;
+        }
+        var a = Pane(window, hwnd).Assistant;
+        switch (c.Tag)
+        {
+            case "assist": a.Go(a.Assist); break;
+            case "draft": a.Go(() => a.DraftReply()); break;
+            case "draftwith": a.AskInstructions(); break;
+            case "summarize": a.Go(a.Summarize); break;
+        }
+    });
+
+    public int GetIndex(Office.IRibbonControl c) => Math.Max(0, Array.IndexOf(Lists[c.Tag].values, Lists[c.Tag].get(Settings.Current)));
+    public void SetIndex(Office.IRibbonControl c, string id, int i) => Change(s => Lists[c.Tag].set(s, Lists[c.Tag].values[i]));
+    public bool GetAttach(Office.IRibbonControl c) => Settings.Current.IncludeAttachments;
+    public void SetAttach(Office.IRibbonControl c, bool on) => Change(s => s.IncludeAttachments = on);
 
     void Change(Action<Settings> edit) => Safe(() =>
     {
@@ -68,10 +103,10 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
         foreach (var r in ribbons) try { r.Invalidate(); } catch { }
     });
 
-    // Pane of the window (main, read or compose) the click came from. Made on first use.
-    AssistantPane Pane(object window)
+    // Pane of one window (main, read or compose). Made on first use.
+    AssistantPane Pane(object window, IntPtr hwnd)
     {
-        ((IOleWindow)window).GetWindow(out var hwnd);
+        if (panes.Count == 0) Task.Run(() => Context.PurgeSessions(Settings.Current.KeepDays));   // once per Outlook run
         foreach (var gone in panes.Keys.Where(h => !IsWindow(h)).ToList()) panes.Remove(gone);
 
         if (!panes.TryGetValue(hwnd, out var p))
@@ -79,6 +114,7 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
             p = factory.CreateCTP("ProjectPA.PaneHost", "Assistant", window);
             p.DockPosition = Office.MsoCTPDockPosition.msoCTPDockPositionRight;
             p.Width = 420;
+            ((PaneHost)(object)p.ContentControl).Pane.Assistant.Host = new OutlookHost(app, window);
             panes[hwnd] = p;
         }
         p.Visible = true;
@@ -106,5 +142,11 @@ public class Connect : IDTExtensibility2, Office.IRibbonExtensibility, Office.IC
 public class PaneHost : UserControl
 {
     public AssistantPane Pane { get; } = new();
-    public PaneHost() => Controls.Add(new ElementHost { Dock = DockStyle.Fill, Child = Pane });
+
+    public PaneHost()
+    {
+        var host = new ElementHost { Dock = DockStyle.Fill, Child = Pane };
+        Controls.Add(host);
+        Pane.Assistant.FocusInput += () => host.Focus();   // keyboard focus has to enter the pane's window first
+    }
 }

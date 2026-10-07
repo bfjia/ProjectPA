@@ -1,0 +1,109 @@
+# User guide
+
+ProjectPA adds an assistant to classic Outlook. You select an email, click a button, and the assistant reads the whole thread (and its attachments) and produces what you asked for in a pane on the right: a draft reply, a summary, or a short briefing on what the email needs from you.
+
+Nothing happens on its own. The assistant only runs when you click one of its buttons, and it never sends mail or changes anything in Outlook. A draft only reaches a reply window when you click to insert it, and you press Send yourself.
+
+## Where the buttons are
+
+After installation and an Outlook restart you will find the assistant in three places:
+
+- **The Assistant tab** in the ribbon of the main window, of an open message, and of a reply you are writing. It has every control.
+- **An Assistant group on the Home tab** (and on the Message tab of open messages and replies) with Assist, Draft Reply and Summarize, so the common actions need no tab switch.
+- **The right-click menu of a message** in the message list, under Assistant.
+
+Whichever you use, the result appears in the **assistant pane** docked on the right of that window.
+
+## The actions
+
+### Draft Reply
+
+Select or open the message you want to answer and click **Draft Reply**.
+
+1. The assistant reads the thread: every message in the conversation, including your own earlier replies in Sent Items, plus the attachments.
+2. A draft appears in the pane, written as it streams in. You can edit the text directly in the pane.
+3. Under the draft are three kinds of controls:
+   - **Reply All** and **Reply** open Outlook's normal reply window with the draft placed at the top, above your signature and the quoted thread. The highlighted one is the likely choice: Reply All when the message had several recipients, Reply otherwise. If you were already writing a reply when you clicked Draft Reply, there is a single **Insert** button that puts the draft into that reply.
+   - **Copy** puts the draft on the clipboard.
+   - The pills underneath are one-click changes: **Shorter**, **Longer**, **More formal**, **Friendlier**, and up to three alternative replies the assistant thinks you might prefer, such as "Decline politely". Each produces a new draft below the first, so you can compare.
+4. To steer the draft in your own words, type in the box at the bottom ("say Tuesday works but ask for a later start") and press Enter. Shift+Enter adds a line break.
+
+To give instructions before the first draft, open the arrow under Draft Reply and choose **Draft with Instructions**. The cursor moves to the box in the pane; type what the reply should do and press Enter.
+
+### Assist
+
+Click **Assist** when you want to know what an email is and what to do about it. The assistant gives a two-line description, what the sender needs from you, and any deadline. Underneath are suggested replies as pills; clicking one drafts that reply.
+
+### Summarize
+
+Click **Summarize** on a long thread. The summary is laid out as: what the thread is about and where it stands, what is being asked of you, dates and decisions, and open questions.
+
+### Asking questions
+
+At any point you can type a question about the thread in the box at the bottom, for example "what did they quote for the second option?" or "does the attached contract mention a notice period?". The answer appears as a new card. If your message asks for a change to a draft, you get a new draft instead.
+
+The pane remembers the conversation for the selected email, so follow-ups are quick. When you select a different email and click an assistant button, the pane starts fresh for that email.
+
+## The pane
+
+At the top is the subject of the email the pane is working on, and a line such as "you@example.com · 6 messages · 2 attachments read". Click the arrow next to it to see exactly which messages were read, which attachments were included, and which were left out and why.
+
+At the bottom is a status line showing the model, the effort level, how long the last request took, and how much of your Claude plan's five-hour usage limit is used. While a request is running a **Stop** button appears there.
+
+## Options on the Assistant tab
+
+| Control | What it does |
+|---|---|
+| **Model** | Which Claude model writes. Haiku is the fastest. Sonnet is the balanced default. Opus and Fable are the most capable, and use more of your plan's usage limit. If your plan does not include a model, the pane shows Claude's error and you can pick another. |
+| **Effort** | How much thinking the model does before answering. Higher effort is slower. Medium suits most email. |
+| **Tone** | Tone of drafted replies. Auto matches the thread. Formal, Friendly and Concise override it. |
+| **Read attachments** | When ticked, attachments are read along with the messages. Untick it for speed, or when you do not want attachments sent. |
+| **Show Pane** | Opens the pane if you closed it. |
+| **Settings** | Opens the settings window described below. |
+
+Model, effort, tone and the attachment option are remembered and apply to every window.
+
+## Settings
+
+- **Accounts.** One tick box per mail account. Untick an account to switch the assistant off for it: the assistant will refuse to read mail from that account.
+- **Sign-off.** How drafts end. Leave it blank for a closing line followed by your first name (Outlook then adds your signature as usual). Type `none` for no sign-off. Anything else is used exactly as written.
+- **Keep saved sessions for (days).** How long the working copies of threads and attachments are kept. The default is 14 days.
+- **Claude Code executable.** Leave blank to have it found automatically; the window shows which one is in use.
+- **Open data folder** opens the folder holding settings, logs and saved sessions.
+
+## Which attachments are read
+
+| Kind | How it is handled |
+|---|---|
+| PDF, PNG, JPEG, GIF, WebP | Saved to the session folder and read by Claude directly, including scanned pages and pictures. |
+| Word, Excel, PowerPoint (`.docx`, `.xlsx`, `.pptx`) | The text is extracted on your computer and included with the thread. |
+| Text formats (`.txt`, `.csv`, `.md`, `.json`, `.xml`, `.html`, `.ics` and similar) | Included as text. |
+| Small pictures inside the message body (under 100 KB) | Left out. These are almost always logos and signature images. |
+| Large pictures inside the message body | Read, because they are usually pasted screenshots. |
+| Older Office formats (`.doc`, `.xls`), archives, other files, files over 15 MB | Left out. The assistant is told the file exists and its name. |
+
+## What is sent, and where
+
+When you click an assistant button, the text of the thread and the attachments listed in the pane are sent to Anthropic through Claude Code, using the Claude account you are signed in to. This applies to every account in Outlook unless you switch it off in Settings. Before relying on the assistant for a work or university mailbox, check that this is acceptable under that organisation's rules.
+
+Nothing is sent when you merely select or read an email. Only the buttons trigger a request.
+
+A working copy of each thread, with its attachments, is kept on your computer under `%LOCALAPPDATA%\ProjectPA\sessions` so that follow-up questions work, and is deleted after the number of days set in Settings. This folder is not inside OneDrive.
+
+## Good to know
+
+- **Speed.** A draft typically takes five to ten seconds with Sonnet. Haiku and low effort are faster. Threads with PDF attachments take longer, because Claude opens them.
+- **Usage limits.** The assistant uses your Claude subscription, which has usage limits. The status line shows how much of the five-hour limit is used. When the limit is reached the pane shows the message Claude Code returns.
+- **Gaps in drafts.** The assistant is told not to invent facts. When a reply needs something it cannot know, it leaves a marked gap such as `[your phone number]` for you to fill in.
+- **Instructions inside emails.** The assistant treats email content as material to work from, not as instructions, and it has no ability to send mail, browse the web or run programs. Even so, read a draft before sending it, as you would with any draft someone else wrote for you.
+- **Changing the wording of the assistant's instructions.** The prompts are plain text files. Copy one from `src/ProjectPA.Core/Prompts` to `%LOCALAPPDATA%\ProjectPA\prompts`, keeping the file name, and edit it. Your version is used from the next request (for `system.md`, from the next email you work on).
+
+## If something goes wrong
+
+Errors are shown in the pane in red. The most common ones:
+
+- **"Select an email first."** No message was selected, or the selected item is not an email (for example a meeting request).
+- **"Claude Code was not found."** See the troubleshooting section of `docs/development.md`.
+- **A message about login or usage limits.** This comes from Claude Code itself. For login problems, run `claude` in a terminal and sign in.
+
+Details are written to a log file per day in `%LOCALAPPDATA%\ProjectPA\logs`.

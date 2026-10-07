@@ -1,14 +1,22 @@
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ProjectPA;
+using ProjectPA.AddIn;
 using ProjectPA.UI;
 
-// Runs the assistant pane without Outlook.
-//   --ask "text"    send a prompt on start
-//   --model haiku   model for this run (not saved)
-//   --shot out.png  render the pane to a file when done, then exit (window stays off screen)
+// Runs the assistant pane in a plain window, on a sample thread.
+//   --do assist|draft|summarize   run an action on start
+//   --with "text"                 instructions for --do draft
+//   --click "Label"               then press that button or suggestion on the last card
+//   --say "text"                  then type this into the pane and send it
+//   --attach file                 add a file to the sample thread as an attachment
+//   --outlook                     work on the email selected in the running Outlook instead of the sample
+//   --dump file                   with --outlook: write thread statistics (no content) to file and exit
+//   --model haiku                 model for this run (not saved)
+//   --shot out.png                save a picture of the pane when done, then exit (window stays off screen)
 static class Program
 {
     [STAThread]
@@ -20,23 +28,126 @@ static class Program
             return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         }
 
+        if (Arg("--dump") is { } dump)
+        {
+            File.WriteAllText(dump, Dump(OutlookHost.Attach()));
+            return;
+        }
         if (Arg("--model") is { } m) Settings.Current.Model = m;
         var shot = Arg("--shot");
+        var inserted = new List<string>();
         var pane = new AssistantPane();
-        var win = new Window { Title = "ProjectPA DevHost", Width = 440, Height = 760, Content = pane };
+        var a = pane.Assistant;
+        a.Host = args.Contains("--outlook") ? OutlookHost.Attach() : new SampleHost
+        {
+            Attach = Arg("--attach"),
+            OnInsert = (text, all) => { if (shot == null) MessageBox.Show(text, all ? "Reply All" : "Reply"); else inserted.Add(text); },
+        };
+        var win = new Window { Title = "ProjectPA DevHost", Width = 440, Height = 820, Content = pane };
         if (shot != null) { win.Left = -4000; win.Top = 0; win.ShowActivated = false; win.ShowInTaskbar = false; }
 
         win.Loaded += async (_, _) =>
         {
-            if (Arg("--ask") is { } q) await pane.Assistant.Ask(q, "Test");
+            async Task Do(Action start)   // actions report through the pane, so wait for it to go idle
+            {
+                start();
+                await Task.Delay(300);
+                while (a.Busy) await Task.Delay(100);
+            }
+            switch (Arg("--do"))
+            {
+                case "assist": await Do(() => a.Go(a.Assist)); break;
+                case "summarize": await Do(() => a.Go(a.Summarize)); break;
+                case "draft": await Do(() => a.Go(() => a.DraftReply(Arg("--with")))); break;
+            }
+            if (Arg("--click") is { } label)
+                await Do(() => a.Cards.Last().Buttons.Concat(a.Cards.Last().Chips).First(c => c.Label == label).Run.Execute(null));
+            if (Arg("--say") is { } say)
+                await Do(() => { a.Input = say; a.Send.Execute(null); });
+
             if (shot == null) return;
+            await Task.Delay(200);
             pane.UpdateLayout();
             var bmp = new RenderTargetBitmap((int)pane.ActualWidth, (int)pane.ActualHeight, 96, 96, PixelFormats.Pbgra32);
             bmp.Render(pane);
             var png = new PngBitmapEncoder { Frames = { BitmapFrame.Create(bmp) } };
             using (var f = File.Create(shot)) png.Save(f);
+            if (inserted.Count > 0) File.WriteAllText(shot + ".inserted.txt", string.Join("\n=====\n", inserted));
             win.Close();
         };
         new Application().Run(win);
+    }
+
+    // Shape of the thread only: counts, sizes and flags, never names or text.
+    static string Dump(IHost host)
+    {
+        var sb = new StringBuilder();
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "pa-dump-" + Guid.NewGuid());
+            var t = host.ReadThread(Path.Combine(dir, "attachments"));
+            Context.Digest(t, dir);
+            sb.AppendLine($"key={(t.Key == null ? "null" : "set")} composing={t.Composing} manyRecipients={t.ManyRecipients} account={(string.IsNullOrEmpty(t.Account) ? "missing" : "set")} user={(string.IsNullOrEmpty(t.UserName) ? "missing" : "set")}");
+            foreach (var m in t.Messages)
+            {
+                sb.AppendLine($"message mine={m.Mine} selected={m.Selected} sent={m.Sent:yyyy-MM-dd} body={m.Body.Length} afterStrip={Context.StripQuotes(m.Body).Length} from={(m.From?.Contains("@") == true ? "name+address" : "name only")}");
+                foreach (var x in m.Attachments)
+                    sb.AppendLine($"  attachment {Path.GetExtension(x.Name)} {x.Size}B saved={x.SavedAs != null} text={x.Text?.Length ?? 0} note={x.Note}");
+            }
+            sb.AppendLine($"rendered={Context.Render(t).Length} chars");
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+        catch (Exception e) { sb.AppendLine("FAILED: " + e); }
+        return sb.ToString();
+    }
+}
+
+class SampleHost : IHost
+{
+    public string Attach;
+    public Action<string, bool> OnInsert;
+    public string CurrentKey => "sample";
+    public IEnumerable<string> Accounts => new[] { "sam.jones@example.com" };
+    public void InsertReply(string text, bool replyAll) => OnInsert(text, replyAll);
+
+    public EmailThread ReadThread(string attachDir)
+    {
+        var t = new EmailThread
+        {
+            Key = CurrentKey, Subject = "Q3 budget review", Account = "sam.jones@example.com", UserName = "Sam Jones", ManyRecipients = true,
+            Messages =
+            {
+                new Message
+                {
+                    From = "Dana Lee <dana.lee@northwind.example>", To = "Sam Jones", Cc = "Priya Shah", Subject = "Q3 budget review",
+                    Sent = DateTime.Today.AddDays(-2).AddHours(9),
+                    Body = "Hi Sam,\n\nFinance needs our Q3 numbers signed off by the 20th. I have put the draft figures together; the travel line is 18% over plan, mostly the Lisbon offsite.\n\nCould we meet for 45 minutes next week to go through it? I am free Tuesday or Thursday afternoon. Priya should join for the headcount part.\n\nThanks,\nDana",
+                },
+                new Message
+                {
+                    Mine = true, To = "Dana Lee", Cc = "Priya Shah", Subject = "RE: Q3 budget review", Sent = DateTime.Today.AddDays(-2).AddHours(11),
+                    Body = "Hi Dana,\n\nThanks. Can you send the breakdown of the travel line before we meet? I want to see what is committed and what we can still cancel.\n\nSam\n\n________________________________\nFrom: Dana Lee\nSent: Monday\nTo: Sam Jones\nSubject: Q3 budget review\n\nHi Sam,\n\nFinance needs our Q3 numbers...",
+                },
+                new Message
+                {
+                    From = "Dana Lee <dana.lee@northwind.example>", To = "Sam Jones", Cc = "Priya Shah", Subject = "RE: Q3 budget review",
+                    Sent = DateTime.Today.AddDays(-1).AddHours(16), Selected = true,
+                    Body = "Hi Sam,\n\nBreakdown attached. About 6,200 of the overage is non-refundable; the remaining 3,900 is the November team dinner, which we could still cancel.\n\nDoes Thursday at 2 pm work for you? If so I will book the room. Also, do you want me to propose cancelling the dinner, or would you rather find the money elsewhere?\n\nDana\n\nOn Mon, Dana Lee wrote:\n> Hi Sam,\n> Finance needs our Q3 numbers...",
+                },
+            },
+        };
+        if (Attach != null)
+        {
+            var att = new Attachment { Name = Path.GetFileName(Attach), Size = new FileInfo(Attach).Length };
+            if (attachDir == null) att.Note = "attachments are switched off";
+            else
+            {
+                Directory.CreateDirectory(attachDir);
+                File.Copy(Attach, Path.Combine(attachDir, "3-" + att.Name));
+                att.SavedAs = "attachments/3-" + att.Name;
+            }
+            t.Messages[2].Attachments.Add(att);
+        }
+        return t;
     }
 }

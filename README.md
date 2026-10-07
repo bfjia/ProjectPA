@@ -6,12 +6,12 @@ Every action is triggered by you. The add-in never sends an email, creates a cal
 
 ## Status
 
-Early development. See the phases below; this file and the documents in `docs/` are updated as each feature lands.
+In development. This file and the documents in `docs/` are updated as each feature lands.
 
 | Phase | Scope | State |
 |---|---|---|
-| 0 | Repository, solution skeleton, add-in loads in Outlook, pane streams a reply from Claude | In progress |
-| 1 | Reply drafting, Assist, Summarize, ribbon options, settings | Planned |
+| 0 | Repository, solution skeleton, add-in registration, pane, Claude integration | Built; verified outside Outlook, first in-Outlook check pending |
+| 1 | Reply drafting, Assist, Summarize, follow-up questions, ribbon options, settings | Built; verified outside Outlook, first in-Outlook check pending |
 | 2 | Find meeting times, add to calendar | Planned |
 | 3 | Compose and polish, tasks and follow-ups, writing-style learning | Planned |
 | 4 | History, hand-off to Claude Code, polish | Planned |
@@ -26,9 +26,9 @@ Form filling and signing is planned for later and is not part of the current wor
 
 ## Documentation
 
+- [docs/user-guide.md](docs/user-guide.md): every button, flow and setting, and what data is sent where.
 - [docs/architecture.md](docs/architecture.md): how the add-in works and why it is built this way.
 - [docs/development.md](docs/development.md): building, testing, installing and troubleshooting.
-- `docs/user-guide.md`: every button, flow and setting. Added with Phase 1.
 
 ## Quick start
 

@@ -1,27 +1,86 @@
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="OnLoad">
+  <!-- {HOME} becomes the first built-in tab of the window this is loaded into.
+       tag names the action; ids only have to be unique. -->
   <ribbon>
     <tabs>
-      <tab id="paTab" label="Assistant">
-        <group id="paMain" label="Assistant">
-          <button id="paShow" label="Show Pane" size="large" imageMso="HappyFace" onAction="ShowPane"
-                  screentip="Open the assistant pane" />
+      <tab idMso="{HOME}">
+        <group id="paQuick" label="Assistant">
+          <button id="paQAssist" tag="assist" label="Assist" size="large" imageMso="ResearchPane" onAction="Do"
+                  screentip="What is this email and what should I do with it?" />
+          <button id="paQDraft" tag="draft" label="Draft Reply" size="large" imageMso="Reply" onAction="Do"
+                  screentip="Draft a reply from the whole thread and its attachments" />
+          <button id="paQSummarize" tag="summarize" label="Summarize" imageMso="Bullets" onAction="Do"
+                  screentip="Summarize the thread" />
         </group>
+      </tab>
+
+      <tab id="paTab" label="Assistant">
+        <group id="paEmail" label="This email">
+          <button id="paAssist" tag="assist" label="Assist" size="large" imageMso="ResearchPane" onAction="Do"
+                  screentip="What is this email and what should I do with it?"
+                  supertip="Reads the thread, says what it is and what is being asked of you, and suggests next steps." />
+          <splitButton id="paDraftSplit" size="large">
+            <button id="paDraft" tag="draft" label="Draft Reply" imageMso="Reply" onAction="Do"
+                    screentip="Draft a reply"
+                    supertip="Reads the whole thread and its attachments and drafts a reply in the pane. Nothing is sent: you insert the draft into a reply and send it yourself." />
+            <menu id="paDraftMenu">
+              <button id="paDraftNow" tag="draft" label="Draft Reply" onAction="Do" />
+              <button id="paDraftWith" tag="draftwith" label="Draft with Instructions..." onAction="Do"
+                      screentip="Say what the reply should do, then draft it" />
+            </menu>
+          </splitButton>
+          <button id="paSummarize" tag="summarize" label="Summarize" size="large" imageMso="Bullets" onAction="Do"
+                  screentip="Summarize the thread"
+                  supertip="What it is about, what is asked of you, dates and decisions, and open questions." />
+        </group>
+
         <group id="paModel" label="Model">
-          <dropDown id="paModelDd" label="Model" sizeString="Sonnet00" getSelectedItemIndex="GetModel" onAction="SetModel"
-                    screentip="Claude model used for generation">
+          <dropDown id="paModelDd" tag="model" label="Model" sizeString="Sonnet00" getSelectedItemIndex="GetIndex" onAction="SetIndex"
+                    screentip="Claude model used for generation"
+                    supertip="Haiku is fastest. Sonnet is the balanced default. Opus and Fable are the most capable and use more of your plan's limit.">
             <item id="haiku" label="Haiku" />
             <item id="sonnet" label="Sonnet" />
             <item id="opus" label="Opus" />
             <item id="fable" label="Fable" />
           </dropDown>
-          <dropDown id="paEffortDd" label="Effort" sizeString="Medium00" getSelectedItemIndex="GetEffort" onAction="SetEffort"
-                    screentip="How much thinking the model does. Higher is slower.">
+          <dropDown id="paEffortDd" tag="effort" label="Effort" sizeString="Medium00" getSelectedItemIndex="GetIndex" onAction="SetIndex"
+                    screentip="How much thinking the model does" supertip="Higher effort is slower and uses more of your plan's limit.">
             <item id="low" label="Low" />
             <item id="medium" label="Medium" />
             <item id="high" label="High" />
           </dropDown>
         </group>
+
+        <group id="paOptions" label="Options">
+          <dropDown id="paToneDd" tag="tone" label="Tone" sizeString="Friendly00" getSelectedItemIndex="GetIndex" onAction="SetIndex"
+                    screentip="Tone of drafted replies" supertip="Auto matches the tone of the thread.">
+            <item id="auto" label="Auto" />
+            <item id="formal" label="Formal" />
+            <item id="friendly" label="Friendly" />
+            <item id="concise" label="Concise" />
+          </dropDown>
+          <checkBox id="paAttach" label="Read attachments" getPressed="GetAttach" onAction="SetAttach"
+                    screentip="Include attachments as context"
+                    supertip="When ticked, attachments in the thread are read along with the messages. Untick for speed or privacy." />
+        </group>
+
+        <group id="paApp" label="Assistant">
+          <button id="paShow" tag="pane" label="Show Pane" size="large" imageMso="ReviewShowMarkupMenu" onAction="Do"
+                  screentip="Open the assistant pane" />
+          <button id="paSettings" tag="settings" label="Settings" size="large" imageMso="PropertySheet" onAction="Do"
+                  screentip="Accounts, sign-off, storage and the Claude Code location" />
+        </group>
       </tab>
     </tabs>
   </ribbon>
+
+  <contextMenus>
+    <contextMenu idMso="ContextMenuMailItem">
+      <menu id="paCtx" label="Assistant">
+        <button id="paCtxAssist" tag="assist" label="Assist" onAction="Do" />
+        <button id="paCtxDraft" tag="draft" label="Draft Reply" onAction="Do" />
+        <button id="paCtxSummarize" tag="summarize" label="Summarize" onAction="Do" />
+      </menu>
+    </contextMenu>
+  </contextMenus>
 </customUI>

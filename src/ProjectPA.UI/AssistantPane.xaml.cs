@@ -11,7 +11,9 @@ public partial class AssistantPane : UserControl
     {
         InitializeComponent();
         DataContext = Assistant;
-        Assistant.Cards.CollectionChanged += (_, _) => scroll.ScrollToEnd();
+        Assistant.FocusInput += () => { input.Focus(); Keyboard.Focus(input); };
+        // follow the text while it streams in
+        scroll.ScrollChanged += (_, e) => { if (e.ExtentHeightChange > 0 && Assistant.Busy) scroll.ScrollToEnd(); };
     }
 
     void InputKey(object sender, KeyEventArgs e)

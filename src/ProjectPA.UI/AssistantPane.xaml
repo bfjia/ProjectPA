@@ -4,30 +4,133 @@
              Background="#F5F5F5" FontFamily="Segoe UI" FontSize="13" Foreground="#222">
   <UserControl.Resources>
     <BooleanToVisibilityConverter x:Key="Vis" />
-    <Style TargetType="Button">
-      <Setter Property="Padding" Value="10,4" />
-      <Setter Property="Background" Value="White" />
-      <Setter Property="BorderBrush" Value="#C8C8C8" />
+
+    <!-- card buttons: white, or blue when Primary -->
+    <Style x:Key="Btn" TargetType="Button">
+      <Setter Property="Margin" Value="0,0,6,0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="White" BorderBrush="#C8C8C8" BorderThickness="1" CornerRadius="4" Padding="12,4">
+              <ContentPresenter x:Name="t" TextBlock.Foreground="#222" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <DataTrigger Binding="{Binding Primary}" Value="True">
+                <Setter TargetName="b" Property="Background" Value="#0F6CBD" />
+                <Setter TargetName="b" Property="BorderBrush" Value="#0F6CBD" />
+                <Setter TargetName="t" Property="TextBlock.Foreground" Value="White" />
+              </DataTrigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="b" Property="Opacity" Value="0.8" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="b" Property="Opacity" Value="0.45" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
+
+    <!-- suggestion pills -->
+    <Style x:Key="Pill" TargetType="Button">
+      <Setter Property="Margin" Value="0,6,6,0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="#EEF4FB" CornerRadius="11" Padding="10,2,10,3">
+              <ContentPresenter TextBlock.Foreground="#0F548C" TextBlock.FontSize="12" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="b" Property="Background" Value="#DCEAF8" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="b" Property="Opacity" Value="0.45" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <ItemsPanelTemplate x:Key="Wrap">
+      <WrapPanel />
+    </ItemsPanelTemplate>
   </UserControl.Resources>
 
   <Grid>
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <ScrollViewer x:Name="scroll" VerticalScrollBarVisibility="Auto">
+    <!-- which email, and what was read from it -->
+    <Border Background="White" BorderBrush="#DCDCDC" BorderThickness="0,0,0,1" Padding="10,8">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding Subject}" Value="{x:Null}">
+              <Setter Property="Visibility" Value="Collapsed" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <StackPanel>
+        <TextBlock Text="{Binding Subject}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        <Expander FontSize="11" Foreground="#6B6B6B" Margin="-2,2,0,0">
+          <Expander.Header>
+            <TextBlock Text="{Binding Detail}" Foreground="#6B6B6B" TextTrimming="CharacterEllipsis" />
+          </Expander.Header>
+          <ItemsControl ItemsSource="{Binding Items}" Margin="22,4,0,0" />
+        </Expander>
+      </StackPanel>
+    </Border>
+
+    <TextBlock Grid.Row="1" Margin="24" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Foreground="#6B6B6B"
+               Text="Select an email, then choose Assist, Draft Reply or Summarize on the Assistant tab.">
+      <TextBlock.Style>
+        <Style TargetType="TextBlock">
+          <Setter Property="Visibility" Value="Collapsed" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding Cards.Count}" Value="0">
+              <Setter Property="Visibility" Value="Visible" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </TextBlock.Style>
+    </TextBlock>
+
+    <ScrollViewer Grid.Row="1" x:Name="scroll" VerticalScrollBarVisibility="Auto">
       <ItemsControl ItemsSource="{Binding Cards}" Margin="8,8,8,0">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <Border x:Name="box" Background="White" BorderBrush="#DCDCDC" BorderThickness="1"
-                    CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                    CornerRadius="6" Padding="10,8,10,10" Margin="0,0,0,8">
               <StackPanel>
                 <TextBlock x:Name="title" Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="#6B6B6B" />
                 <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
                          AcceptsReturn="True" BorderThickness="0" Background="Transparent" Padding="0" Margin="-2,4,0,0" />
+                <StackPanel IsEnabled="{Binding DataContext.Idle, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                  <ItemsControl ItemsSource="{Binding Buttons}" ItemsPanel="{StaticResource Wrap}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Content="{Binding Label}" Command="{Binding Run}" Style="{StaticResource Btn}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <ItemsControl ItemsSource="{Binding Chips}" ItemsPanel="{StaticResource Wrap}" Margin="0,2,0,0">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Content="{Binding Label}" Command="{Binding Run}" Style="{StaticResource Pill}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
               </StackPanel>
             </Border>
             <DataTemplate.Triggers>
@@ -41,12 +144,11 @@
       </ItemsControl>
     </ScrollViewer>
 
-    <Grid Grid.Row="1" Margin="8,4,8,4">
+    <Grid Grid.Row="2" Margin="8,4,8,4">
       <TextBox x:Name="input" Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" PreviewKeyDown="InputKey"
                AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52" MaxHeight="160" Padding="6"
                VerticalScrollBarVisibility="Auto" BorderBrush="#C8C8C8" />
-      <TextBlock Text="Ask, or say what to change. Enter sends, Shift+Enter adds a line."
-                 Foreground="#8A8A8A" Margin="9,7" IsHitTestVisible="False" TextWrapping="Wrap">
+      <TextBlock Text="{Binding Hint}" Foreground="#8A8A8A" Margin="9,7" IsHitTestVisible="False" TextWrapping="Wrap">
         <TextBlock.Style>
           <Style TargetType="TextBlock">
             <Setter Property="Visibility" Value="Collapsed" />
@@ -60,8 +162,8 @@
       </TextBlock>
     </Grid>
 
-    <DockPanel Grid.Row="2" Margin="8,0,8,8" LastChildFill="True">
-      <Button DockPanel.Dock="Right" Content="Stop" Command="{Binding Stop}"
+    <DockPanel Grid.Row="3" Margin="8,0,8,8">
+      <Button DockPanel.Dock="Right" Content="Stop" Command="{Binding Stop}" Style="{StaticResource Btn}" Margin="6,0,0,0"
               Visibility="{Binding Busy, Converter={StaticResource Vis}}" />
       <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#6B6B6B" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
     </DockPanel>

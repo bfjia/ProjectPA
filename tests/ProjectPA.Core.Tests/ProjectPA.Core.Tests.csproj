@@ -8,5 +8,6 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <ProjectReference Include="..\..\src\ProjectPA.Core\ProjectPA.Core.csproj" />
     <Using Include="Xunit" />
+    <Reference Include="System.IO.Compression" />
   </ItemGroup>
 </Project>
