@@ -143,6 +143,13 @@ public class PaneHost : UserControl
 {
     public AssistantPane Pane { get; } = new();
 
+    // an unhandled error in pane code would otherwise take Outlook down with it
+    static PaneHost() => System.Windows.Threading.Dispatcher.CurrentDispatcher.UnhandledException += (_, e) =>
+    {
+        Log.Error("pane", e.Exception);
+        e.Handled = true;
+    };
+
     public PaneHost()
     {
         var host = new ElementHost { Dock = DockStyle.Fill, Child = Pane };
